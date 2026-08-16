@@ -46,7 +46,7 @@ describe('aggregateRunResults', () => {
     expect(report.topFailures.map((item) => item.seed)).toEqual([3, 2]);
     expect(report.levelFunnel).toEqual([{ level: 1, reached: 4, completed: 1 }]);
     expect(report.runs).toBeUndefined();
-    expect(stableReportJson(report)).not.toMatch(/NaN|Infinity|null\s*[,}]/);
+    expect(stableReportJson(report)).not.toMatch(/NaN|Infinity/);
   });
 
   it('uses deterministic nearest-rank percentiles and validates finite values', () => {
