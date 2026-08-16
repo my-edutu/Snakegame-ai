@@ -6,7 +6,7 @@ const previous = { mode: 'explore' as const, ticksInMode: 10 };
 const config = { lookaheadDepth: 6, lookaheadNodeBudget: 800, minimumSafeAreaRatio: 0.3, highOccupancyThreshold: 0.7, strategyMinDwellTicks: 2 };
 
 describe('adversarial survival scenarios', () => {
-  it('rejects food that sits in a post-growth pocket when safer space exists', () => {
+  it('rejects adjacent food that sits in a post-growth pocket when safer space exists', () => {
     const observation = makeObservation({
       board: { width: 6, height: 5 }, head: { x: 2, y: 2 }, tail: { x: 1, y: 2 },
       body: [{ x: 2, y: 2 }, { x: 1, y: 2 }], direction: 'right',
@@ -25,6 +25,25 @@ describe('adversarial survival scenarios', () => {
     expect(result.summary).toContain('FOOD PATH REJECTED');
   });
 
+  it('rejects a multi-step shortest food route whose final growth closes the only exit', () => {
+    const observation = makeObservation({
+      board: { width: 7, height: 5 }, head: { x: 1, y: 2 }, tail: { x: 1, y: 2 },
+      body: [{ x: 1, y: 2 }], direction: 'right',
+      food: [{ id: 'deep-trap', type: 'normal', value: 1, position: { x: 4, y: 2 } }],
+      obstacles: [
+        { id: 'u', position: { x: 4, y: 1 } },
+        { id: 'r', position: { x: 5, y: 2 } },
+        { id: 'd', position: { x: 4, y: 3 } },
+      ],
+    });
+    const result = decideSurvivalMove(observation, previous, config);
+    const towardFood = result.evaluations.find((e) => e.direction === 'right')!;
+    expect(towardFood.foodDistance).toBe(3);
+    expect(towardFood.foodSafe).toBe(false);
+    expect(towardFood.hardRejected).toBe(true);
+    expect(result.direction).not.toBe('right');
+  });
+
   it('survives by entering a vacating tail cell when that is the only route', () => {
     const observation = makeObservation({
       board: { width: 4, height: 4 }, head: { x: 2, y: 2 }, tail: { x: 2, y: 1 },
@@ -39,16 +58,17 @@ describe('adversarial survival scenarios', () => {
     expect(result.direction).toBe('up');
   });
 
-  it('uses Hamiltonian mode on a compatible high-occupancy board', () => {
+  it('enters Hamiltonian mode only when a high-occupancy body already respects cycle order', () => {
     const body = [
+      { x: 2, y: 2 }, { x: 2, y: 1 }, { x: 1, y: 1 }, { x: 1, y: 2 },
+      { x: 1, y: 3 }, { x: 0, y: 3 }, { x: 0, y: 2 }, { x: 0, y: 1 },
       { x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }, { x: 3, y: 0 },
-      { x: 3, y: 1 }, { x: 2, y: 1 }, { x: 1, y: 1 }, { x: 0, y: 1 },
-      { x: 0, y: 2 }, { x: 1, y: 2 }, { x: 2, y: 2 }, { x: 3, y: 2 },
     ];
-    const observation = makeObservation({ board: { width: 4, height: 4 }, head: body[0], tail: body.at(-1), body, direction: 'left' });
+    const observation = makeObservation({ board: { width: 4, height: 4 }, head: body[0], tail: body.at(-1), body, direction: 'down' });
     const result = decideSurvivalMove(observation, previous, { ...config, highOccupancyThreshold: 0.7 });
-    expect(['hamiltonian', 'escape', 'high-risk']).toContain(result.strategy.mode);
-    if (result.strategy.mode === 'hamiltonian') expect(result.summary).toContain('HAMILTONIAN MODE');
+    expect(result.direction).toBe('down');
+    expect(result.strategy.mode).toBe('hamiltonian');
+    expect(result.summary).toContain('HAMILTONIAN MODE');
   });
 
   it('returns the least-risk deterministic move when every option is dangerous', () => {
