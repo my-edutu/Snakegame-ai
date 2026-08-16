@@ -26,6 +26,29 @@ describe('survival decision engine', () => {
     expect(result.direction).toBe('left');
     expect(result.strategy.mode).toBe('escape');
     expect(result.risk.level).toBe('critical');
+    expect(result.summary).toBe('CRITICAL — 1 SAFE MOVE REMAINING');
+  });
+
+  it('normalizes malformed configuration without exceeding structural budgets', () => {
+    const observation = makeObservation();
+    const result = decideSurvivalMove(observation, strategy, {
+      lookaheadDepth: Number.POSITIVE_INFINITY,
+      lookaheadNodeBudget: -100,
+      minimumSafeAreaRatio: 4,
+      highOccupancyThreshold: -1,
+      strategyMinDwellTicks: -20,
+    });
+    expect(result.nodesEvaluated).toBe(0);
+    expect(result.direction).not.toBeNull();
+    expect(result.evaluations.find((e) => e.direction === result.direction)?.legal).toBe(true);
+  });
+
+  it('honors configured occupancy thresholds instead of a hidden constant', () => {
+    const observation = makeObservation({ board: { width: 6, height: 5 }, head: { x: 2, y: 2 }, tail: { x: 2, y: 2 }, body: [{ x: 2, y: 2 }] });
+    const lowThreshold = decideSurvivalMove(observation, strategy, { ...config, highOccupancyThreshold: 0.01 });
+    const highThreshold = decideSurvivalMove(observation, strategy, { ...config, highOccupancyThreshold: 0.9 });
+    expect(lowThreshold.evaluations.some((e) => e.hamiltonianPenalty > 0)).toBe(true);
+    expect(highThreshold.evaluations.every((e) => e.hamiltonianPenalty === 0 || !e.legal)).toBe(true);
   });
 
   it('owns decision evidence and is deep deterministic', () => {
