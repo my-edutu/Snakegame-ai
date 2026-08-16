@@ -10,6 +10,7 @@ export function makeObservation(overrides: Partial<AiObservation> = {}): AiObser
     tail: { ...head },
     body: body.map((cell) => ({ ...cell })),
     direction: 'right' as Direction,
+    pendingGrowth: 0,
     food: [],
     obstacles: [],
     hazards: [],
