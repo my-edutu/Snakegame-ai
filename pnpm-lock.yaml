@@ -55,6 +55,9 @@ importers:
       '@snake/engine':
         specifier: workspace:*
         version: link:../engine
+      '@snake/failure':
+        specifier: workspace:*
+        version: link:../failure
       '@snake/levels':
         specifier: workspace:*
         version: link:../levels
