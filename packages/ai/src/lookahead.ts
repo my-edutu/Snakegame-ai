@@ -1,6 +1,5 @@
 import type { Direction } from '@snake/shared';
 import { CANONICAL_DIRECTIONS } from './graph.js';
-import { analyzeSpace } from './space.js';
 import { simulateMove, type SimulatedState } from './simulation.js';
 
 export interface LookaheadConfig { readonly depth: number; readonly nodeBudget: number }
@@ -18,9 +17,7 @@ function visit(state: SimulatedState, remaining: number, ctx: SearchContext): nu
     const step = simulateMove(state, direction);
     if (!step.legal || !step.state) continue;
     legalCount += 1;
-    const area = analyzeSpace(step.state);
-    if (area.deadEnd && area.escapeRouteCount === 0) best = Math.max(best, 1);
-    else best = Math.max(best, 1 + visit(step.state, remaining - 1, ctx));
+    best = Math.max(best, 1 + visit(step.state, remaining - 1, ctx));
   }
   return legalCount === 0 ? 0 : best;
 }
