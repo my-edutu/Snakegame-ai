@@ -55,5 +55,9 @@ console.log(JSON.stringify({
     outcome: tail.search.telemetry.outcome,
     pathLength: tail.search.telemetry.pathLength,
   },
-  candidates: candidates.map(({ direction, legal, targetDistance }) => ({ direction, legal, targetDistance })),
+  candidates: candidates.map(({ direction, legal, staticTargetDistance }) => ({
+    direction,
+    legal,
+    staticTargetDistance,
+  })),
 }));
