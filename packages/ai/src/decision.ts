@@ -53,6 +53,8 @@ export const DEFAULT_SURVIVAL_DECISION_CONFIG: SurvivalDecisionConfig = {
   strategyMinDwellTicks: 6,
 };
 
+const ILLEGAL_MOVE_SCORE = -1_000_000_000;
+
 interface FoodRouteSafety {
   readonly relevant: boolean;
   readonly safe: boolean;
@@ -126,7 +128,7 @@ export function decideSurvivalMove(observation: AiObservation, previousStrategy:
   const evaluations: MoveEvaluation[] = CANONICAL_DIRECTIONS.map((direction) => {
     const step = simulateMove(base, direction);
     if (!step.legal || !step.state) {
-      return { direction, legal: false, hardRejected: true, reachableArea: 0, reachableAreaRatio: 0, tailReachable: false, escapeRouteCount: 0, corridorDepth: 0, foodDistance: null, foodSafe: false, predictedSurvivalTicks: 0, hamiltonianPenalty: 1, trapProbability: 1, totalScore: Number.NEGATIVE_INFINITY, reasons: [{ code: 'illegal', message: 'Immediate move is illegal.', severity: 'critical' }] };
+      return { direction, legal: false, hardRejected: true, reachableArea: 0, reachableAreaRatio: 0, tailReachable: false, escapeRouteCount: 0, corridorDepth: 0, foodDistance: null, foodSafe: false, predictedSurvivalTicks: 0, hamiltonianPenalty: 1, trapProbability: 1, totalScore: ILLEGAL_MOVE_SCORE, reasons: [{ code: 'illegal', message: 'Immediate move is illegal.', severity: 'critical' }] };
     }
     const space = analyzeSpace(step.state);
     const look = evaluateSurvivalLookahead(step.state, { depth: config.lookaheadDepth, nodeBudget: perCandidateBudget });
