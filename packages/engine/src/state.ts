@@ -1,5 +1,5 @@
 import type { Direction, LevelId, RunId, Vec2 } from '@snake/shared';
-import type { EngineConfig } from './config.js';
+import type { ActiveBounds, EngineConfig } from './config.js';
 import type { SerializedRngState } from './rng.js';
 
 export type LifecycleState =
@@ -23,27 +23,30 @@ export interface SnakeState {
 
 export interface FoodEntity {
   readonly id: string;
-  readonly type: 'normal';
+  readonly type: string;
   readonly position: Vec2;
   readonly value: number;
+  readonly growthDelta?: number;
+  readonly scoreDelta?: number;
 }
 
 export interface ObstacleEntity { readonly id: string; readonly position: Vec2 }
 export interface HazardEntity { readonly id: string; readonly position: Vec2 }
+export interface PortalEntity { readonly id: string; readonly a: Vec2; readonly b: Vec2 }
 export interface ScoreState { readonly score: number; readonly foodEaten: number }
 export interface ProgressionState { readonly occupancyPercent: number; readonly boardFilled: boolean }
 export interface AIState { readonly strategy: 'manual-input'; readonly decisionSequence: number }
 export interface RiskState { readonly score: 0; readonly band: 'low'; readonly safeMoveCount: 0; readonly accessibleTiles: 0; readonly escapeRoutes: 0; readonly projectedTrapProbability: 0; readonly contributors: readonly [] }
 export interface RunStats { readonly ticksSurvived: number; readonly maxLength: number; readonly maxOccupancyPercent: number }
-export type DeathCause = 'wall-collision' | 'self-collision';
+export type DeathCause = 'wall-collision' | 'self-collision' | 'obstacle-collision' | 'hazard-collision' | 'bounds-collision';
 export interface DeathRecord { readonly tick: number; readonly cause: DeathCause; readonly position: Vec2 }
 export interface LevelRuntimeState {
   readonly id: LevelId;
   readonly name: string;
   readonly width: number;
   readonly height: number;
-  /** Optional for schema-v1 snapshots created before Phase 3; legacy default is 1. */
   readonly growthPerFood?: number;
+  readonly wrap?: boolean;
 }
 
 export interface GameState {
@@ -57,6 +60,8 @@ export interface GameState {
   readonly food: readonly FoodEntity[];
   readonly obstacles: readonly ObstacleEntity[];
   readonly hazards: readonly HazardEntity[];
+  readonly portals: readonly PortalEntity[];
+  readonly activeBounds?: ActiveBounds;
   readonly score: ScoreState;
   readonly progression: ProgressionState;
   readonly ai: AIState;
