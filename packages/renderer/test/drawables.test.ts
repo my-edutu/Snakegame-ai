@@ -1,3 +1,4 @@
+import { Graphics } from 'pixi.js';
 import { describe, expect, it } from 'vitest';
 import { createSceneGraph, destroySceneGraph } from '../src/scene.js';
 import { SnakeDrawableManager } from '../src/draw-snake.js';
@@ -19,6 +20,33 @@ describe('renderer drawable managers', () => {
     for (let i = 0; i < 1000; i += 1) manager.update(body, 'right', viewport, skin, quality);
     expect(manager.drawableCount).toBe(100);
     expect(scene.layers.snake.children).toHaveLength(100);
+    manager.destroy();
+    destroySceneGraph(scene);
+  });
+
+  it('styles every new segment when the snake grows without a skin or viewport change', () => {
+    const scene = createSceneGraph();
+    const manager = new SnakeDrawableManager(scene.layers.snake, scene.layers.trail);
+    const skin = getSnakeSkin('galaxy').value;
+    const quality = getQualityPreset('balanced').value;
+
+    manager.update([{ x: 3, y: 2 }, { x: 2, y: 2 }], 'right', viewport, skin, quality);
+    manager.update([
+      { x: 5, y: 2 },
+      { x: 4, y: 2 },
+      { x: 3, y: 2 },
+      { x: 2, y: 2 },
+    ], 'right', viewport, skin, quality);
+
+    const grownSegments = scene.layers.snake.children.slice(2);
+    expect(grownSegments).toHaveLength(2);
+    for (const segment of grownSegments) {
+      expect(segment).toBeInstanceOf(Graphics);
+      const bounds = segment.getLocalBounds();
+      expect(bounds.width).toBeGreaterThan(0);
+      expect(bounds.height).toBeGreaterThan(0);
+    }
+
     manager.destroy();
     destroySceneGraph(scene);
   });
