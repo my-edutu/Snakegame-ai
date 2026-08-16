@@ -13,6 +13,16 @@ describe('survival risk', () => {
     expect(danger.level).toBe('critical');
   });
 
+  it('treats zero or one safe move as structurally critical even when open space is large', () => {
+    const otherwiseHealthy = { reachableAreaRatio: 1, escapeRouteCount: 4, occupancyRatio: 0.1, bodyPressure: 0, trapProbability: 0, lookaheadFailure: 0, topologyPressure: 0 };
+    const one = assessRisk({ ...otherwiseHealthy, safeMoves: 1 });
+    const none = assessRisk({ ...otherwiseHealthy, safeMoves: 0 });
+    expect(one.score).toBeGreaterThanOrEqual(75);
+    expect(one.level).toBe('critical');
+    expect(none.score).toBe(100);
+    expect(none.level).toBe('critical');
+  });
+
   it('normalizes out-of-range inputs deterministically', () => {
     const result = assessRisk({ safeMoves: 99, reachableAreaRatio: 2, escapeRouteCount: 99, occupancyRatio: -1, bodyPressure: -2, trapProbability: 3, lookaheadFailure: 2, topologyPressure: -1 });
     expect(result.contributors.safeMoves).toBe(4);
