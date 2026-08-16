@@ -1,0 +1,60 @@
+name: Phase 1 Core Engine CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, phase-01-core-engine]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: phase-01-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Typecheck, test, build, determinism
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enable pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.0
+          run_install: false
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Unit and deterministic scenario tests
+        run: pnpm test
+
+      - name: Build packages
+        run: pnpm build
+
+      - name: Scan engine for forbidden APIs
+        run: pnpm check:forbidden
+
+      - name: Verify repeatable headless output
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm headless | tee /tmp/headless-a.txt
+          pnpm headless | tee /tmp/headless-b.txt
+          diff -u /tmp/headless-a.txt /tmp/headless-b.txt

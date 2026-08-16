@@ -1,0 +1,21 @@
+{
+  "name": "snakegame-ai",
+  "private": true,
+  "packageManager": "pnpm@10.15.0",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "headless": "pnpm --filter @snake/engine headless",
+    "check:forbidden": "node scripts/check-forbidden-apis.mjs",
+    "check": "pnpm typecheck && pnpm test && pnpm build && pnpm check:forbidden && pnpm headless"
+  },
+  "devDependencies": {
+    "typescript": "5.8.3",
+    "vitest": "3.2.4"
+  }
+}
