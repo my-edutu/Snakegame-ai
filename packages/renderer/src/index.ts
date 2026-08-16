@@ -19,4 +19,5 @@ export * from './hud-model.js';
 export * from './hud-copy.js';
 export * from './hud-events.js';
 export * from './hud-layout.js';
+export * from './draw-hud.js';
 export * from './renderer.js';
