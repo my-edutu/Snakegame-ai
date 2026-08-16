@@ -149,6 +149,7 @@ export class SnakeRenderer {
   private readonly warnings: string[] = [];
   private destroyed = false;
   private initialized = false;
+  private initializing = false;
 
   private readonly onTick = (elapsedMs: number): void => {
     if (!this.initialized || this.destroyed || !this.currentFrame) return;
@@ -181,23 +182,48 @@ export class SnakeRenderer {
   async init(options: SnakeRendererInit): Promise<void> {
     if (this.destroyed) throw new Error('renderer has been destroyed');
     if (this.initialized) throw new Error('renderer is already initialized');
+    if (this.initializing) throw new Error('renderer initialization is already in progress');
     this.assertDimensions(options.width, options.height);
-    const hostOptions: RendererHostInit = {
-      width: options.width,
-      height: options.height,
-      ...(options.mount ? { mount: options.mount } : {}),
-      ...(options.resolution !== undefined ? { resolution: options.resolution } : {}),
-    };
-    this.host = await this.hostFactory(hostOptions);
-    this.width = options.width;
-    this.height = options.height;
-    this.scene = createSceneGraph();
-    this.host.stage.addChild(this.scene.root);
-    this.snake = new SnakeDrawableManager(this.scene.layers.snake, this.scene.layers.trail);
-    this.items = new ItemDrawableManager(this.scene.layers.items, 16);
-    this.effects = new EffectManager(this.scene.layers.effects, 512);
-    this.host.ticker.add(this.onTick);
-    this.initialized = true;
+    this.initializing = true;
+
+    let host: RendererHost | undefined;
+    let scene: SceneGraph | undefined;
+    let snake: SnakeDrawableManager | undefined;
+    let items: ItemDrawableManager | undefined;
+    let effects: EffectManager | undefined;
+
+    try {
+      const hostOptions: RendererHostInit = {
+        width: options.width,
+        height: options.height,
+        ...(options.mount ? { mount: options.mount } : {}),
+        ...(options.resolution !== undefined ? { resolution: options.resolution } : {}),
+      };
+      host = await this.hostFactory(hostOptions);
+      if (this.destroyed) throw new Error('renderer was destroyed during initialization');
+
+      scene = createSceneGraph();
+      host.stage.addChild(scene.root);
+      snake = new SnakeDrawableManager(scene.layers.snake, scene.layers.trail);
+      items = new ItemDrawableManager(scene.layers.items, 16);
+      effects = new EffectManager(scene.layers.effects, 512);
+      host.ticker.add(this.onTick);
+      if (this.destroyed) throw new Error('renderer was destroyed during initialization');
+
+      this.host = host;
+      this.scene = scene;
+      this.snake = snake;
+      this.items = items;
+      this.effects = effects;
+      this.width = options.width;
+      this.height = options.height;
+      this.initialized = true;
+    } catch (error) {
+      this.rollbackInitialization(host, scene, snake, items, effects);
+      throw error;
+    } finally {
+      this.initializing = false;
+    }
   }
 
   resize(width: number, height: number): void {
@@ -328,6 +354,27 @@ export class SnakeRenderer {
     if (this.warnings[this.warnings.length - 1] === warning) return;
     this.warnings.push(warning);
     if (this.warnings.length > 32) this.warnings.splice(0, this.warnings.length - 32);
+  }
+
+  private rollbackInitialization(
+    host: RendererHost | undefined,
+    scene: SceneGraph | undefined,
+    snake: SnakeDrawableManager | undefined,
+    items: ItemDrawableManager | undefined,
+    effects: EffectManager | undefined,
+  ): void {
+    if (host) {
+      try { host.ticker.remove(this.onTick); } catch { /* best-effort rollback */ }
+    }
+    try { snake?.destroy(); } catch { /* best-effort rollback */ }
+    try { items?.destroy(); } catch { /* best-effort rollback */ }
+    try { effects?.destroy(); } catch { /* best-effort rollback */ }
+    if (scene) {
+      try { destroySceneGraph(scene); } catch { /* best-effort rollback */ }
+    }
+    if (host) {
+      try { host.destroy(); } catch { /* preserve original initialization error */ }
+    }
   }
 
   private countDisplayObjects(): number {
