@@ -11,7 +11,7 @@ import { getQualityPreset, type QualityPreset } from './quality.js';
 import { createSceneGraph, destroySceneGraph, type SceneGraph } from './scene.js';
 import { getSnakeSkin, type SnakeSkin } from './skins.js';
 import { getTheme, type EnvironmentTheme } from './themes.js';
-import type { RenderFrame, RenderVec2, ViewportTransform } from './types.js';
+import type { RenderFrame, ViewportTransform } from './types.js';
 import { computeViewportTransform } from './viewport.js';
 
 export interface RendererTicker {
@@ -131,15 +131,15 @@ const eventEffectColor = (kind: RenderFrame['events'][number]['kind'], theme: En
 export class SnakeRenderer {
   private readonly hostFactory: RendererHostFactory;
   private readonly safeInset: number;
-  private host?: RendererHost;
-  private scene?: SceneGraph;
-  private snake?: SnakeDrawableManager;
-  private items?: ItemDrawableManager;
-  private effects?: EffectManager;
+  private host: RendererHost | undefined;
+  private scene: SceneGraph | undefined;
+  private snake: SnakeDrawableManager | undefined;
+  private items: ItemDrawableManager | undefined;
+  private effects: EffectManager | undefined;
   private readonly events = new RenderEventBuffer({ maxSize: 32, ttlTicks: 240 });
   private readonly frameMetrics = new FrameMetrics(120);
-  private previousFrame?: RenderFrame;
-  private currentFrame?: RenderFrame;
+  private previousFrame: RenderFrame | undefined;
+  private currentFrame: RenderFrame | undefined;
   private elapsedSinceFrameMs = 0;
   private width = 0;
   private height = 0;
