@@ -19,5 +19,9 @@ export function humanReport(report: SimulationBatchReport): string {
   ];
   const causes = Object.entries(report.deathCauses);
   if (causes.length > 0) lines.push(`Death causes: ${causes.map(([key, count]) => `${key}=${count}`).join(', ')}`);
+  if (report.topReplays.length > 0) {
+    lines.push('Top replay commands:');
+    for (const artifact of report.topReplays) lines.push(`- ${artifact.command}`);
+  }
   return `${lines.join('\n')}\n`;
 }
