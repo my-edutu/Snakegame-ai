@@ -60,6 +60,20 @@ interface FoodRouteSafety {
   readonly escapeRouteCount: number | null;
 }
 
+const clamp01 = (value: number): number => Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0));
+const finiteInteger = (value: number, fallback: number, max: number): number => Number.isFinite(value) ? Math.max(0, Math.min(max, Math.floor(value))) : fallback;
+
+function normalizeConfig(partial: Partial<SurvivalDecisionConfig>): SurvivalDecisionConfig {
+  const merged = { ...DEFAULT_SURVIVAL_DECISION_CONFIG, ...partial };
+  return {
+    lookaheadDepth: finiteInteger(merged.lookaheadDepth, DEFAULT_SURVIVAL_DECISION_CONFIG.lookaheadDepth, 64),
+    lookaheadNodeBudget: finiteInteger(merged.lookaheadNodeBudget, DEFAULT_SURVIVAL_DECISION_CONFIG.lookaheadNodeBudget, 1_000_000),
+    minimumSafeAreaRatio: clamp01(merged.minimumSafeAreaRatio),
+    highOccupancyThreshold: clamp01(merged.highOccupancyThreshold),
+    strategyMinDwellTicks: finiteInteger(merged.strategyMinDwellTicks, DEFAULT_SURVIVAL_DECISION_CONFIG.strategyMinDwellTicks, 10_000),
+  };
+}
+
 function trapScore(areaRatio: number, escapes: number, corridorDepth: number, tailReachable: boolean, forcedDeath: boolean, topology: number): number {
   return Math.max(0, Math.min(1,
     (1 - areaRatio) * 0.32 + (1 - Math.min(4, escapes) / 4) * 0.2 +
@@ -85,7 +99,8 @@ function assessFoodRoute(base: SimulatedState, directions: readonly Direction[] 
 }
 
 function summaryFor(strategy: StrategyState, risk: RiskAssessment, best: MoveEvaluation | undefined, rejectedFood: MoveEvaluation | undefined): string {
-  if (risk.level === 'critical' && risk.contributors.safeMoves <= 1) return 'CRITICAL — 1 SAFE MOVE REMAINING';
+  if (risk.level === 'critical' && risk.contributors.safeMoves === 0) return 'CRITICAL — NO SAFE MOVES';
+  if (risk.level === 'critical' && risk.contributors.safeMoves === 1) return 'CRITICAL — 1 SAFE MOVE REMAINING';
   if (strategy.mode === 'hamiltonian') return 'HAMILTONIAN MODE — PRESERVING ENDGAME ORDER';
   if (rejectedFood) return `FOOD PATH REJECTED — REACHABLE AREA ${Math.round(rejectedFood.reachableAreaRatio * 100)}%`;
   if (strategy.mode === 'tail-follow' && best) return `TAIL FOLLOW — PRESERVES ${best.escapeRouteCount} ESCAPE ROUTES`;
@@ -93,7 +108,7 @@ function summaryFor(strategy: StrategyState, risk: RiskAssessment, best: MoveEva
 }
 
 export function decideSurvivalMove(observation: AiObservation, previousStrategy: StrategyState, partial: Partial<SurvivalDecisionConfig> = {}): SurvivalDecision {
-  const config = { ...DEFAULT_SURVIVAL_DECISION_CONFIG, ...partial };
+  const config = normalizeConfig(partial);
   const base = createSimulatedState(observation);
   const totalCells = Math.max(1, observation.board.width * observation.board.height - observation.obstacles.length - observation.hazards.length);
   const occupancyRatio = Math.min(1, observation.body.length / totalCells);
@@ -104,7 +119,7 @@ export function decideSurvivalMove(observation: AiObservation, previousStrategy:
   const foodDirections = foodPlan.search?.route?.directions;
   const firstFoodDirection = foodDirections?.[0] ?? null;
   const plannedFoodSafety = assessFoodRoute(base, foodDirections, config);
-  const perCandidateBudget = Math.max(1, Math.floor(config.lookaheadNodeBudget / 4));
+  const perCandidateBudget = Math.floor(config.lookaheadNodeBudget / 4);
   let nodesEvaluated = 0;
   let budgetExhausted = false;
 
