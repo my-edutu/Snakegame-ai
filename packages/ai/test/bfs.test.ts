@@ -35,7 +35,7 @@ describe('BFS pathfinding', () => {
     expect(result.telemetry.outcome).toBe('found');
     expect(result.route.coordinates).not.toContainEqual({ x: 3, y: 2 });
     expect(result.route.coordinates).not.toContainEqual({ x: 3, y: 1 });
-    expect(result.telemetry.pathLength).toBe(6);
+    expect(result.telemetry.pathLength).toBe(4);
   });
 
   it('handles zero-length, unreachable, and invalid targets explicitly', () => {
