@@ -1,5 +1,6 @@
-import { createObservation, decideSurvivalMove, type StrategyState } from '@snake/ai';
-import { createEngine, type EngineConfig, type EngineFoodConfig } from '@snake/engine';
+import { createObservation, decideSurvivalMove, type StrategyState, type SurvivalDecision } from '@snake/ai';
+import { createEngine, type EngineConfig, type EngineFoodConfig, type GameState } from '@snake/engine';
+import type { Direction } from '@snake/shared';
 import { compileLevel, evaluateProgression, mixSeed, resolveMechanics, type LevelDefinition, type ProgressionEvaluation } from '@snake/levels';
 import type { SimulationHarnessConfig, SimulationRunResult, SimulationTerminalReason, StrategyTransition, TerminalDecisionContext } from './types.js';
 
@@ -11,6 +12,15 @@ export interface LevelSimulationResult {
   readonly progression: ProgressionEvaluation;
   readonly run: SimulationRunResult;
 }
+
+export interface LevelDecisionPolicyContext {
+  readonly level: LevelDefinition;
+  readonly seed: number;
+  readonly state: GameState;
+  readonly decision: SurvivalDecision;
+  readonly decisionSequence: number;
+}
+export type LevelDecisionPolicy = (context: LevelDecisionPolicyContext) => Direction | null;
 
 const initialStrategy = (): StrategyState => ({ mode: 'explore', ticksInMode: 10_000 });
 const emptyTerminalContext = (): TerminalDecisionContext => ({ strategy: null, riskLevel: null, riskScore: 0, safeMoves: 0, summary: null });
@@ -30,7 +40,7 @@ function spawnDueFood(level: LevelDefinition, seed: number, tick: number, state:
   return [...state.food.map((food) => ({ id: food.id, type: food.type, position: { ...food.position }, value: food.value, ...(food.growthDelta === undefined ? {} : { growthDelta: food.growthDelta }), ...(food.scoreDelta === undefined ? {} : { scoreDelta: food.scoreDelta }) })), { id: `${level.id}-food-${tick}-${state.food.length}`, type: chosen.id, position, value: chosen.value, growthDelta: chosen.growthDelta, scoreDelta: chosen.scoreDelta }];
 }
 
-export function runLevelSimulation(level: LevelDefinition, seed: number, harness: SimulationHarnessConfig): LevelSimulationResult {
+export function runLevelSimulationWithPolicy(level: LevelDefinition, seed: number, harness: SimulationHarnessConfig, policy?: LevelDecisionPolicy): LevelSimulationResult {
   if (!Number.isInteger(harness.maxTicks) || harness.maxTicks < 1) throw new RangeError('maxTicks must be a positive integer.');
   const compiled = compileLevel(level, seed);
   const engine = createEngine(compiled.engine as EngineConfig);
@@ -63,8 +73,9 @@ export function runLevelSimulation(level: LevelDefinition, seed: number, harness
     if (decision.risk.contributors.safeMoves <= 1) nearDeathCount += 1;
     if (decision.strategy.mode !== strategy.mode) { transitions.push({ from: strategy.mode, to: decision.strategy.mode, tick: before.tick }); if (decision.strategy.mode === 'hamiltonian') hamiltonianEntries += 1; }
     strategy = decision.strategy; strategyTicks[strategy.mode] = (strategyTicks[strategy.mode] ?? 0) + 1; if (strategy.mode === 'hamiltonian') hamiltonianTicks += 1;
-    if (!decision.direction) { terminalReason = 'no-move'; break; }
-    engine.step(decision.direction);
+    const selectedDirection = policy ? policy({ level, seed, state: before, decision, decisionSequence: before.ai.decisionSequence }) : decision.direction;
+    if (!selectedDirection) { terminalReason = 'no-move'; break; }
+    engine.step(selectedDirection);
     const after = engine.getState();
     progression = evaluateProgression(level, { length: after.snake.body.length, foodEaten: after.score.foodEaten, ticksSurvived: after.run.ticksSurvived, occupancyPercent: after.progression.occupancyPercent, score: after.score.score });
     if (progression.complete) break;
@@ -81,4 +92,8 @@ export function runLevelSimulation(level: LevelDefinition, seed: number, harness
     terminalContext, levelReached: 1, levelCompleted: progression.complete,
   };
   return { levelId: level.id, levelNumber: level.number, levelVersion: level.version, levelCompleted: progression.complete, progression, run };
+}
+
+export function runLevelSimulation(level: LevelDefinition, seed: number, harness: SimulationHarnessConfig): LevelSimulationResult {
+  return runLevelSimulationWithPolicy(level, seed, harness);
 }
