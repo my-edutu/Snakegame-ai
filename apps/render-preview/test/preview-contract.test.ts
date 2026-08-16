@@ -21,7 +21,7 @@ describe('render preview host contract', () => {
   it('boots asynchronously without top-level await and exposes browser-ready state', () => {
     expect(entrySource).not.toMatch(/^\s*await\s+renderer\.init/m);
     expect(entrySource).toContain('void bootPreview().catch');
-    expect(entrySource).toContain("stage.dataset.rendererState = 'ready'");
-    expect(entrySource).toContain("stage.dataset.rendererState = 'error'");
+    expect(entrySource).toContain("stage.dataset['rendererState'] = 'ready'");
+    expect(entrySource).toContain("stage.dataset['rendererState'] = 'error'");
   });
 });
