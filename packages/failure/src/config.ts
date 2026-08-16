@@ -24,4 +24,24 @@ const schema = z.object({
   if (value.minimumLevel !== undefined && value.maximumLevel !== undefined && value.maximumLevel < value.minimumLevel) ctx.addIssue({ code: 'custom', message: 'maximumLevel must be >= minimumLevel.' });
 });
 
-export function parseFailureConfig(value: unknown): FailureConfig { return schema.parse(value); }
+export function parseFailureConfig(value: unknown): FailureConfig {
+  const parsed = schema.parse(value);
+  return {
+    enabled: parsed.enabled,
+    minimumEligibleRunTicks: parsed.minimumEligibleRunTicks,
+    maximumProbabilityPerDecision: parsed.maximumProbabilityPerDecision,
+    naturalLookingOnly: parsed.naturalLookingOnly,
+    deviationTypes: [...parsed.deviationTypes],
+    ...(parsed.targetFailuresPerHour === undefined ? {} : { targetFailuresPerHour: parsed.targetFailuresPerHour }),
+    ...(parsed.probabilityPerMinute === undefined ? {} : { probabilityPerMinute: parsed.probabilityPerMinute }),
+    ...(parsed.maximumRunTicks === undefined ? {} : { maximumRunTicks: parsed.maximumRunTicks }),
+    ...(parsed.minimumLevel === undefined ? {} : { minimumLevel: parsed.minimumLevel }),
+    ...(parsed.maximumLevel === undefined ? {} : { maximumLevel: parsed.maximumLevel }),
+    ...(parsed.minimumRisk === undefined ? {} : { minimumRisk: parsed.minimumRisk }),
+    ...(parsed.minimumLength === undefined ? {} : { minimumLength: parsed.minimumLength }),
+    ...(parsed.minimumOccupancyPercent === undefined ? {} : { minimumOccupancyPercent: parsed.minimumOccupancyPercent }),
+    ...(parsed.riskMultiplier === undefined ? {} : { riskMultiplier: parsed.riskMultiplier }),
+    ...(parsed.occupancyMultiplier === undefined ? {} : { occupancyMultiplier: parsed.occupancyMultiplier }),
+    ...(parsed.levelMultiplier === undefined ? {} : { levelMultiplier: parsed.levelMultiplier }),
+  };
+}
