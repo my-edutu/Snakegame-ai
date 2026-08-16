@@ -16,11 +16,8 @@ describe('Phase 3 survival reasoning contract', () => {
     const api = ai as any;
     if (typeof api.createSimulatedState !== 'function') return;
     const observation = makeObservation({
-      head: { x: 2, y: 2 },
-      tail: { x: 2, y: 1 },
-      body: [{ x: 2, y: 2 }, { x: 2, y: 1 }],
-      direction: 'right',
-      pendingGrowth: 0,
+      head: { x: 2, y: 2 }, tail: { x: 2, y: 1 },
+      body: [{ x: 2, y: 2 }, { x: 2, y: 1 }], direction: 'right', pendingGrowth: 0,
     });
     const state = api.createSimulatedState(observation);
     const tailStep = api.simulateMove(state, 'up');
@@ -72,7 +69,7 @@ describe('Phase 3 survival reasoning contract', () => {
     if (typeof api.selectStrategy !== 'function') return;
     const previous = { mode: 'explore', ticksInMode: 2 };
     const result = api.selectStrategy(previous, {
-      emergency: false, allRisky: false, safeMoves: 3, riskScore: 20, occupancyRatio: 0.2,
+      emergency: false, allRisky: false, safeMoves: 3, riskScore: 20, highOccupancy: false,
       hamiltonianAvailable: false, hamiltonianPreservable: false, foodSafe: true,
       tailPreferred: false, expanding: false, recovered: false,
     }, 6);
