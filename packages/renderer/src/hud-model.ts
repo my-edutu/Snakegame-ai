@@ -85,6 +85,7 @@ export function createHudSnapshot(input: HudSnapshotInput): HudSnapshot {
   }
 
   return Object.freeze({
+    completeness: input.completeness ?? 'rich',
     level: Object.freeze({ ...input.level }),
     run: Object.freeze({ ...input.run }),
     primary: Object.freeze({ ...input.primary }),
