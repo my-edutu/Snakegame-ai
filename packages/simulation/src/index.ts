@@ -1,5 +1,6 @@
 export * from './aggregate.js';
 export * from './batch.js';
+export * from './compare.js';
 export * from './parallel.js';
 export * from './percentiles.js';
 export * from './replay.js';
