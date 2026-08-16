@@ -36,6 +36,12 @@ describe('AI observation', () => {
     expect((ai as any).createObservation(state).growthPerFood).toBe(3);
   });
 
+  it('keeps schema-v1 snapshot compatibility by defaulting missing growth rules to one', () => {
+    const legacy = createEngine(createBaselineConfig(19)).getState() as any;
+    delete legacy.level.growthPerFood;
+    expect((ai as any).createObservation(legacy).growthPerFood).toBe(1);
+  });
+
   it('deeply detaches nested arrays and positions in both mutation directions', () => {
     const engine = createEngine(createBaselineConfig(73));
     const source = engine.getState() as any;
