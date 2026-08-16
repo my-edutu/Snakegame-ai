@@ -2,6 +2,7 @@ import type { SurvivalDecisionConfig, StrategyMode } from '@snake/ai';
 import type { DeathCause, EngineConfig } from '@snake/engine';
 
 export type SimulationTerminalReason = 'death' | 'board-filled' | 'simulation-cap' | 'no-move';
+export type SimulationRiskLevel = 'low' | 'moderate' | 'high' | 'critical';
 
 export interface SimulationHarnessConfig {
   readonly maxTicks: number;
@@ -11,6 +12,14 @@ export interface StrategyTransition {
   readonly from: StrategyMode;
   readonly to: StrategyMode;
   readonly tick: number;
+}
+
+export interface TerminalDecisionContext {
+  readonly strategy: StrategyMode | null;
+  readonly riskLevel: SimulationRiskLevel | null;
+  readonly riskScore: number;
+  readonly safeMoves: number;
+  readonly summary: string | null;
 }
 
 export interface SimulationRunResult {
@@ -32,6 +41,7 @@ export interface SimulationRunResult {
   readonly nearDeathCount: number;
   readonly hamiltonianEntries: number;
   readonly hamiltonianTicks: number;
+  readonly terminalContext: TerminalDecisionContext;
   readonly levelReached: 1;
   readonly levelCompleted: boolean;
 }
@@ -65,11 +75,20 @@ export interface ReplayArtifact {
   readonly command: string;
 }
 
+export interface StrategyEffectiveness {
+  readonly runsUsed: number;
+  readonly deaths: number;
+  readonly boardFilled: number;
+  readonly meanMaxOccupancyPercent: number;
+  readonly meanTicksSurvived: number;
+}
+
 export interface SimulationBatchReport {
   readonly schemaVersion: 1;
   readonly runCount: number;
   readonly terminalCounts: Readonly<Record<SimulationTerminalReason, number>>;
   readonly deathCauses: Readonly<Record<string, number>>;
+  readonly failurePatterns: Readonly<Record<string, number>>;
   readonly ticks: NumericSummary;
   readonly maxLength: NumericSummary;
   readonly maxOccupancyPercent: NumericSummary;
@@ -79,6 +98,7 @@ export interface SimulationBatchReport {
   readonly nearDeathCount: number;
   readonly strategyTicks: Readonly<Record<string, number>>;
   readonly strategyTransitions: Readonly<Record<string, number>>;
+  readonly strategyEffectiveness: Readonly<Record<string, StrategyEffectiveness>>;
   readonly hamiltonian: Readonly<{ entries: number; ticks: number }>;
   readonly levelFunnel: readonly [{ readonly level: 1; readonly reached: number; readonly completed: number }];
   readonly topFailures: readonly SimulationRunResult[];
