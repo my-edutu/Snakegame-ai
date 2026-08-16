@@ -16,6 +16,7 @@ const observation: AiObservation = {
   ],
   direction: 'right',
   pendingGrowth: 0,
+  growthPerFood: 1,
   food: [{ id: 'food-demo', type: 'normal', value: 1, position: { x: 15, y: 8 } }],
   obstacles: [
     { id: 'wall-a', position: { x: 8, y: 5 } },

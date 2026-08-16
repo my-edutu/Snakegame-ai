@@ -11,6 +11,7 @@ export function makeObservation(overrides: Partial<AiObservation> = {}): AiObser
     body: body.map((cell) => ({ ...cell })),
     direction: 'right' as Direction,
     pendingGrowth: 0,
+    growthPerFood: 1,
     food: [],
     obstacles: [],
     hazards: [],

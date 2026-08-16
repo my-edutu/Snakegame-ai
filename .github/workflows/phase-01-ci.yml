@@ -66,3 +66,11 @@ jobs:
           pnpm headless:ai | tee /tmp/headless-ai-a.txt
           pnpm headless:ai | tee /tmp/headless-ai-b.txt
           diff -u /tmp/headless-ai-a.txt /tmp/headless-ai-b.txt
+
+      - name: Verify repeatable survival reasoning output
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm headless:survival | tee /tmp/headless-survival-a.txt
+          pnpm headless:survival | tee /tmp/headless-survival-b.txt
+          diff -u /tmp/headless-survival-a.txt /tmp/headless-survival-b.txt

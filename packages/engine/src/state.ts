@@ -37,7 +37,14 @@ export interface RiskState { readonly score: 0; readonly band: 'low'; readonly s
 export interface RunStats { readonly ticksSurvived: number; readonly maxLength: number; readonly maxOccupancyPercent: number }
 export type DeathCause = 'wall-collision' | 'self-collision';
 export interface DeathRecord { readonly tick: number; readonly cause: DeathCause; readonly position: Vec2 }
-export interface LevelRuntimeState { readonly id: LevelId; readonly name: string; readonly width: number; readonly height: number }
+export interface LevelRuntimeState {
+  readonly id: LevelId;
+  readonly name: string;
+  readonly width: number;
+  readonly height: number;
+  /** Optional for schema-v1 snapshots created before Phase 3; legacy default is 1. */
+  readonly growthPerFood?: number;
+}
 
 export interface GameState {
   readonly schemaVersion: 1;

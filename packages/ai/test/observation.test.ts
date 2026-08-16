@@ -8,7 +8,7 @@ describe('AI observation', () => {
     expect(typeof (ai as Record<string, unknown>).createObservation).toBe('function');
   });
 
-  it('projects search-relevant state without leaking mutable engine references', () => {
+  it('projects search-relevant state and deterministic level rules without leaking mutable engine references', () => {
     const engine = createEngine(createBaselineConfig(42));
     const state = engine.getState();
     const observation = (ai as any).createObservation(state);
@@ -18,6 +18,7 @@ describe('AI observation', () => {
     expect(observation.tail).toEqual(state.snake.body.at(-1));
     expect(observation.body).toEqual(state.snake.body);
     expect(observation.food).toEqual(state.food);
+    expect(observation.growthPerFood).toBe(1);
     expect(observation.tick).toBe(0);
     expect(observation.runId).toBe(state.runId);
 
@@ -26,6 +27,19 @@ describe('AI observation', () => {
     if (observation.food[0]) observation.food[0].position.x = 997;
 
     expect(engine.getState().snake.body[0]).toEqual({ x: 3, y: 3 });
+  });
+
+  it('projects non-default growth rules exactly from authoritative engine state', () => {
+    const engine = createEngine({ ...createBaselineConfig(91), growthPerFood: 3 });
+    const state = engine.getState();
+    expect(state.level.growthPerFood).toBe(3);
+    expect((ai as any).createObservation(state).growthPerFood).toBe(3);
+  });
+
+  it('keeps schema-v1 snapshot compatibility by defaulting missing growth rules to one', () => {
+    const legacy = createEngine(createBaselineConfig(19)).getState() as any;
+    delete legacy.level.growthPerFood;
+    expect((ai as any).createObservation(legacy).growthPerFood).toBe(1);
   });
 
   it('deeply detaches nested arrays and positions in both mutation directions', () => {
