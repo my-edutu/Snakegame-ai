@@ -18,8 +18,8 @@ export interface StrategySignals {
 
 function desiredMode(s: StrategySignals): StrategyMode {
   if (s.allRisky) return 'high-risk';
-  if (s.emergency || s.safeMoves <= 1) return 'escape';
   if (s.highOccupancy && s.hamiltonianAvailable && s.hamiltonianPreservable) return 'hamiltonian';
+  if (s.emergency || s.safeMoves <= 1) return 'escape';
   if (s.highOccupancy) return 'endgame';
   if (!s.foodSafe && s.tailPreferred) return 'tail-follow';
   if (!s.foodSafe) return 'survival';
@@ -31,9 +31,9 @@ function desiredMode(s: StrategySignals): StrategyMode {
 
 export function selectStrategy(previous: StrategyState, signals: StrategySignals, minimumDwellTicks: number): StrategyState {
   const desired = desiredMode(signals);
-  const emergencyOverride = desired === 'escape' || desired === 'high-risk';
+  const urgentOverride = desired === 'escape' || desired === 'high-risk' || desired === 'hamiltonian';
   if (desired === previous.mode) return { mode: previous.mode, ticksInMode: previous.ticksInMode + 1 };
-  if (!emergencyOverride && previous.ticksInMode < Math.max(0, minimumDwellTicks)) {
+  if (!urgentOverride && previous.ticksInMode < Math.max(0, minimumDwellTicks)) {
     return { mode: previous.mode, ticksInMode: previous.ticksInMode + 1 };
   }
   return { mode: desired, ticksInMode: 0 };
