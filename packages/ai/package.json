@@ -17,6 +17,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "headless": "node dist/headless.js"
+    "headless": "node dist/headless.js",
+    "headless:survival": "node dist/survival-headless.js"
   }
 }
