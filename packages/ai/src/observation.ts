@@ -23,8 +23,8 @@ export interface AiObservation {
   readonly food: readonly AiFood[];
   readonly obstacles: readonly AiObstacle[];
   readonly hazards: readonly AiHazard[];
-  readonly portals: readonly AiPortal[];
-  readonly wrap: boolean;
+  readonly portals?: readonly AiPortal[];
+  readonly wrap?: boolean;
   readonly activeBounds?: AiActiveBounds;
   readonly tick: number;
   readonly runId: string;
