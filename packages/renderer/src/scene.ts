@@ -10,6 +10,7 @@ export const SCENE_LAYER_ORDER = [
   'snake',
   'effects',
   'localEvents',
+  'hud',
   'debug',
 ] as const;
 
