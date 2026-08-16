@@ -20,8 +20,13 @@
     "simulate:worker-failure-smoke": "node packages/simulation/dist/worker-failure-smoke.js",
     "simulate:benchmark1000": "node packages/simulation/dist/benchmark.js 1000 100",
     "simulate:smoke10000": "node packages/simulation/dist/benchmark.js 10000 2",
+    "preview:build": "pnpm --filter @snake/render-preview build",
+    "renderer:resolution": "vitest run packages/renderer/test/viewport.test.ts apps/render-preview/test/preview-contract.test.ts",
+    "renderer:soak": "vitest run packages/renderer/test/soak.test.ts",
+    "check:renderer-boundaries": "node scripts/check-renderer-boundaries.mjs",
+    "renderer:verify": "pnpm check:renderer-boundaries && pnpm renderer:resolution && pnpm renderer:soak && pnpm preview:build",
     "check:forbidden": "node scripts/check-forbidden-apis.mjs",
-    "check": "pnpm typecheck && pnpm test && pnpm build && pnpm check:forbidden && pnpm headless && pnpm headless:ai && pnpm headless:survival && pnpm simulate:smoke && pnpm simulate:parallel-smoke && pnpm simulate:worker-failure-smoke"
+    "check": "pnpm typecheck && pnpm test && pnpm build && pnpm check:forbidden && pnpm check:renderer-boundaries && pnpm headless && pnpm headless:ai && pnpm headless:survival && pnpm simulate:smoke && pnpm simulate:parallel-smoke && pnpm simulate:worker-failure-smoke"
   },
   "devDependencies": {
     "typescript": "5.8.3",
