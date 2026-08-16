@@ -5,7 +5,6 @@ export type SimulationTerminalReason = 'death' | 'board-filled' | 'simulation-ca
 
 export interface SimulationHarnessConfig {
   readonly maxTicks: number;
-  readonly retainTopFailures?: number;
 }
 
 export interface StrategyTransition {
@@ -57,6 +56,15 @@ export interface NumericSummary {
   readonly p99: number;
 }
 
+export interface ReplayArtifact {
+  readonly schemaVersion: 1;
+  readonly seed: number;
+  readonly fileName: string;
+  readonly execution: SimulationExecutionConfig;
+  readonly expected: SimulationRunResult;
+  readonly command: string;
+}
+
 export interface SimulationBatchReport {
   readonly schemaVersion: 1;
   readonly runCount: number;
@@ -74,13 +82,6 @@ export interface SimulationBatchReport {
   readonly hamiltonian: Readonly<{ entries: number; ticks: number }>;
   readonly levelFunnel: readonly [{ readonly level: 1; readonly reached: number; readonly completed: number }];
   readonly topFailures: readonly SimulationRunResult[];
+  readonly topReplays: readonly ReplayArtifact[];
   readonly runs?: readonly SimulationRunResult[];
-}
-
-export interface ReplayArtifact {
-  readonly schemaVersion: 1;
-  readonly seed: number;
-  readonly execution: SimulationExecutionConfig;
-  readonly expected: SimulationRunResult;
-  readonly command: string;
 }
