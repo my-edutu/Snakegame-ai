@@ -23,8 +23,9 @@
     "preview:build": "pnpm --filter @snake/render-preview build",
     "renderer:resolution": "vitest run packages/renderer/test/viewport.test.ts apps/render-preview/test/preview-contract.test.ts",
     "renderer:soak": "vitest run packages/renderer/test/soak.test.ts",
+    "renderer:browser": "bash scripts/check-renderer-browser.sh",
     "check:renderer-boundaries": "node scripts/check-renderer-boundaries.mjs",
-    "renderer:verify": "pnpm check:renderer-boundaries && pnpm renderer:resolution && pnpm renderer:soak && pnpm preview:build",
+    "renderer:verify": "pnpm check:renderer-boundaries && pnpm renderer:resolution && pnpm renderer:soak && pnpm preview:build && pnpm renderer:browser",
     "check:forbidden": "node scripts/check-forbidden-apis.mjs",
     "check": "pnpm typecheck && pnpm test && pnpm build && pnpm check:forbidden && pnpm check:renderer-boundaries && pnpm headless && pnpm headless:ai && pnpm headless:survival && pnpm simulate:smoke && pnpm simulate:parallel-smoke && pnpm simulate:worker-failure-smoke"
   },
