@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const sourceFiles = [
-  'run.ts', 'batch.ts', 'aggregate.ts', 'parallel.ts', 'worker.ts', 'report.ts', 'replay.ts', 'seed-corpus.ts', 'percentiles.ts',
+  'run.ts', 'batch.ts', 'compare.ts', 'aggregate.ts', 'parallel.ts', 'worker.ts', 'report.ts', 'replay.ts', 'seed-corpus.ts', 'percentiles.ts',
 ];
 
 describe('simulation import boundary', () => {
