@@ -1,4 +1,4 @@
-import { equalVec, type Direction } from '@snake/shared';
+import type { Direction } from '@snake/shared';
 import { CANONICAL_DIRECTIONS } from './graph.js';
 import { createHamiltonianOrder, hamiltonianMovePenalty } from './hamiltonian.js';
 import { evaluateSurvivalLookahead } from './lookahead.js';
@@ -6,7 +6,7 @@ import type { AiObservation } from './observation.js';
 import { planPathToFood } from './planners.js';
 import { assessRisk, type RiskAssessment } from './risk.js';
 import { analyzeSpace } from './space.js';
-import { createSimulatedState, simulateMove } from './simulation.js';
+import { createSimulatedState, simulateMove, type SimulatedState } from './simulation.js';
 import { selectStrategy, type StrategyState } from './strategy.js';
 
 export interface SurvivalDecisionConfig {
@@ -53,6 +53,13 @@ export const DEFAULT_SURVIVAL_DECISION_CONFIG: SurvivalDecisionConfig = {
   strategyMinDwellTicks: 6,
 };
 
+interface FoodRouteSafety {
+  readonly relevant: boolean;
+  readonly safe: boolean;
+  readonly reachableAreaRatio: number | null;
+  readonly escapeRouteCount: number | null;
+}
+
 function trapScore(areaRatio: number, escapes: number, corridorDepth: number, tailReachable: boolean, forcedDeath: boolean, topology: number): number {
   return Math.max(0, Math.min(1,
     (1 - areaRatio) * 0.32 + (1 - Math.min(4, escapes) / 4) * 0.2 +
@@ -61,10 +68,26 @@ function trapScore(areaRatio: number, escapes: number, corridorDepth: number, ta
   ));
 }
 
-function summaryFor(strategy: StrategyState, risk: RiskAssessment, best: MoveEvaluation | undefined, foodRejected: boolean): string {
+function assessFoodRoute(base: SimulatedState, directions: readonly Direction[] | undefined, config: SurvivalDecisionConfig): FoodRouteSafety {
+  if (!directions || directions.length === 0) return { relevant: false, safe: true, reachableAreaRatio: null, escapeRouteCount: null };
+  let state = base;
+  let consumed = false;
+  for (const direction of directions) {
+    const step = simulateMove(state, direction);
+    if (!step.legal || !step.state) return { relevant: true, safe: false, reachableAreaRatio: 0, escapeRouteCount: 0 };
+    state = step.state;
+    consumed ||= step.consumedFoodId !== null;
+  }
+  if (!consumed) return { relevant: true, safe: false, reachableAreaRatio: 0, escapeRouteCount: 0 };
+  const space = analyzeSpace(state);
+  const safe = space.reachableAreaRatio >= config.minimumSafeAreaRatio && space.escapeRouteCount > 0 && !space.deadEnd;
+  return { relevant: true, safe, reachableAreaRatio: space.reachableAreaRatio, escapeRouteCount: space.escapeRouteCount };
+}
+
+function summaryFor(strategy: StrategyState, risk: RiskAssessment, best: MoveEvaluation | undefined, rejectedFood: MoveEvaluation | undefined): string {
   if (risk.level === 'critical' && risk.contributors.safeMoves <= 1) return 'CRITICAL — 1 SAFE MOVE REMAINING';
   if (strategy.mode === 'hamiltonian') return 'HAMILTONIAN MODE — PRESERVING ENDGAME ORDER';
-  if (foodRejected && best) return `FOOD PATH REJECTED — REACHABLE AREA ${Math.round(best.reachableAreaRatio * 100)}%`;
+  if (rejectedFood) return `FOOD PATH REJECTED — REACHABLE AREA ${Math.round(rejectedFood.reachableAreaRatio * 100)}%`;
   if (strategy.mode === 'tail-follow' && best) return `TAIL FOLLOW — PRESERVES ${best.escapeRouteCount} ESCAPE ROUTES`;
   return `STRATEGY: ${strategy.mode.toUpperCase().replace('-', ' ')}`;
 }
@@ -74,9 +97,12 @@ export function decideSurvivalMove(observation: AiObservation, previousStrategy:
   const base = createSimulatedState(observation);
   const totalCells = Math.max(1, observation.board.width * observation.board.height - observation.obstacles.length - observation.hazards.length);
   const occupancyRatio = Math.min(1, observation.body.length / totalCells);
+  const highOccupancy = occupancyRatio >= config.highOccupancyThreshold;
   const hamiltonian = observation.obstacles.length === 0 && observation.hazards.length === 0 ? createHamiltonianOrder(observation.board.width, observation.board.height) : null;
   const foodPlan = planPathToFood(observation);
-  const firstFoodDirection = foodPlan.search?.route?.directions[0] ?? null;
+  const foodDirections = foodPlan.search?.route?.directions;
+  const firstFoodDirection = foodDirections?.[0] ?? null;
+  const plannedFoodSafety = assessFoodRoute(base, foodDirections, config);
   const perCandidateBudget = Math.max(1, Math.floor(config.lookaheadNodeBudget / 4));
   let nodesEvaluated = 0;
   let budgetExhausted = false;
@@ -91,17 +117,22 @@ export function decideSurvivalMove(observation: AiObservation, previousStrategy:
     nodesEvaluated += look.nodesEvaluated;
     budgetExhausted ||= look.budgetExhausted;
     const consumed = step.consumedFoodId !== null;
-    const foodSafe = !consumed || (space.reachableAreaRatio >= config.minimumSafeAreaRatio && !look.forcedDeath && space.escapeRouteCount > 0);
+    const onPlannedFoodRoute = firstFoodDirection === direction && plannedFoodSafety.relevant;
+    const immediateFoodSafe = !consumed || (space.reachableAreaRatio >= config.minimumSafeAreaRatio && !look.forcedDeath && space.escapeRouteCount > 0 && !space.deadEnd);
+    const foodSafe = onPlannedFoodRoute ? plannedFoodSafety.safe : immediateFoodSafe;
     const trapProbability = trapScore(space.reachableAreaRatio, space.escapeRouteCount, space.corridorDepth, space.tailReachable, look.forcedDeath, space.articulationPressure);
-    const hPenalty = hamiltonian && occupancyRatio >= config.highOccupancyThreshold ? hamiltonianMovePenalty(hamiltonian, base, direction) : 0;
+    const hPenalty = hamiltonian && highOccupancy ? hamiltonianMovePenalty(hamiltonian, base, direction) : 0;
     const insufficientSpace = space.reachableArea < Math.min(totalCells, step.state.body.length + Math.max(2, step.state.pendingGrowth));
-    const hardRejected = look.forcedDeath || space.deadEnd || insufficientSpace || (consumed && !foodSafe);
+    const hardRejected = look.forcedDeath || space.deadEnd || insufficientSpace || ((consumed || onPlannedFoodRoute) && !foodSafe);
     const reasons: DecisionReason[] = [];
-    if (consumed && !foodSafe) reasons.push({ code: 'unsafe-food', message: `Food rejected: post-growth reachable area ${Math.round(space.reachableAreaRatio * 100)}%.`, severity: 'warning' });
+    if ((consumed || onPlannedFoodRoute) && !foodSafe) {
+      const ratio = onPlannedFoodRoute ? plannedFoodSafety.reachableAreaRatio ?? 0 : space.reachableAreaRatio;
+      reasons.push({ code: 'unsafe-food', message: `Food route rejected: post-growth reachable area ${Math.round(ratio * 100)}%.`, severity: 'warning' });
+    }
     if (!space.tailReachable) reasons.push({ code: 'tail-unreachable', message: 'Current simulated tail is not reachable through free space.', severity: 'warning' });
     if (space.escapeRouteCount <= 1) reasons.push({ code: 'low-escape', message: `${space.escapeRouteCount} escape route remains.`, severity: space.escapeRouteCount === 0 ? 'critical' : 'warning' });
     if (hPenalty > 0) reasons.push({ code: 'hamiltonian-order', message: 'Move deviates from Hamiltonian forward order.', severity: 'warning' });
-    const foodProgress = firstFoodDirection === direction ? 8 : 0;
+    const foodProgress = firstFoodDirection === direction && foodSafe ? 8 : 0;
     const score = (space.reachableAreaRatio * 38) + (space.escapeRouteCount * 6) + (look.predictedSurvivalTicks * 3) + (space.tailReachable ? 8 : 0) + foodProgress - trapProbability * 38 - hPenalty * 42 - (hardRejected ? 1000 : 0);
     return { direction, legal: true, hardRejected, reachableArea: space.reachableArea, reachableAreaRatio: space.reachableAreaRatio, tailReachable: space.tailReachable, escapeRouteCount: space.escapeRouteCount, corridorDepth: space.corridorDepth, foodDistance: foodPlan.search?.telemetry.pathLength ?? null, foodSafe, predictedSurvivalTicks: look.predictedSurvivalTicks, hamiltonianPenalty: hPenalty, trapProbability, totalScore: score, reasons };
   });
@@ -117,8 +148,9 @@ export function decideSurvivalMove(observation: AiObservation, previousStrategy:
   const risk = assessRisk({ safeMoves, reachableAreaRatio: bestArea, escapeRouteCount: bestEscapes, occupancyRatio, bodyPressure: 1 - bestArea, trapProbability: bestTrap, lookaheadFailure: best && best.predictedSurvivalTicks >= config.lookaheadDepth ? 0 : 1, topologyPressure: best ? Math.min(1, best.corridorDepth / 12) : 1 });
   const foodCandidates = legal.filter((e) => firstFoodDirection === e.direction);
   const foodSafe = foodCandidates.length === 0 || foodCandidates.some((e) => e.foodSafe && !e.hardRejected);
+  const rejectedFood = foodCandidates.find((e) => !e.foodSafe || e.hardRejected);
   const tailPreferred = Boolean(best && !foodSafe && best.tailReachable);
   const hamiltonianPreservable = Boolean(best && hamiltonian && best.hamiltonianPenalty === 0);
-  const strategy = selectStrategy(previousStrategy, { emergency: safeMoves <= 1 || risk.score >= 85, allRisky: legal.length > 0 && viable.length === 0, safeMoves, riskScore: risk.score, occupancyRatio, hamiltonianAvailable: Boolean(hamiltonian), hamiltonianPreservable, foodSafe, tailPreferred, expanding: bestArea > 0.65, recovered: previousStrategy.mode === 'escape' && risk.score < 35 }, config.strategyMinDwellTicks);
-  return { direction: best?.direction ?? null, strategy, risk, evaluations, summary: summaryFor(strategy, risk, best, !foodSafe), nodesEvaluated, budgetExhausted };
+  const strategy = selectStrategy(previousStrategy, { emergency: safeMoves <= 1 || risk.score >= 85, allRisky: legal.length > 0 && viable.length === 0, safeMoves, riskScore: risk.score, highOccupancy, hamiltonianAvailable: Boolean(hamiltonian), hamiltonianPreservable, foodSafe, tailPreferred, expanding: bestArea > 0.65, recovered: previousStrategy.mode === 'escape' && risk.score < 35 }, config.strategyMinDwellTicks);
+  return { direction: best?.direction ?? null, strategy, risk, evaluations, summary: summaryFor(strategy, risk, best, rejectedFood), nodesEvaluated, budgetExhausted };
 }
