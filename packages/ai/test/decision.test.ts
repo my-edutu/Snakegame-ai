@@ -13,6 +13,20 @@ describe('survival decision engine', () => {
     expect(result.evaluations.find((e) => e.direction === result.direction)?.legal).toBe(true);
   });
 
+  it('keeps all numeric telemetry finite and JSON-safe', () => {
+    const result = decideSurvivalMove(makeObservation({
+      head: { x: 0, y: 0 }, tail: { x: 0, y: 0 }, body: [{ x: 0, y: 0 }], direction: 'up',
+    }), strategy, config);
+    for (const evaluation of result.evaluations) {
+      expect(Number.isFinite(evaluation.totalScore)).toBe(true);
+      expect(Number.isFinite(evaluation.trapProbability)).toBe(true);
+      expect(Number.isFinite(evaluation.reachableAreaRatio)).toBe(true);
+    }
+    const serialized = JSON.stringify(result);
+    expect(serialized).not.toContain('null,"reasons"');
+    expect(JSON.parse(serialized).evaluations).toHaveLength(4);
+  });
+
   it('selects the only legal escape and reports critical pressure', () => {
     const observation = makeObservation({
       head: { x: 2, y: 2 }, tail: { x: 2, y: 2 }, body: [{ x: 2, y: 2 }], direction: 'right',
