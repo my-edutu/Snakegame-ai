@@ -1,8 +1,14 @@
 import { readFileSync } from 'node:fs';
+import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 import { PREVIEW_VIEWPORTS, isPresentationOnlySetting } from '../src/config.js';
 
 const entrySource = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8');
+const entryAst = ts.createSourceFile('main.ts', entrySource, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+
+const hasTopLevelAwait = entryAst.statements.some((statement) =>
+  ts.isExpressionStatement(statement) && ts.isAwaitExpression(statement.expression),
+);
 
 describe('render preview host contract', () => {
   it('defines the exact three target livestream viewport presets', () => {
@@ -19,7 +25,7 @@ describe('render preview host contract', () => {
   });
 
   it('boots asynchronously without top-level await and exposes browser-ready state', () => {
-    expect(entrySource).not.toMatch(/^\s*await\s+renderer\.init/m);
+    expect(hasTopLevelAwait).toBe(false);
     expect(entrySource).toContain('void bootPreview().catch');
     expect(entrySource).toContain("stage.dataset['rendererState'] = 'ready'");
     expect(entrySource).toContain("stage.dataset['rendererState'] = 'error'");
