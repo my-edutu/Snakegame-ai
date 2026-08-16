@@ -24,6 +24,7 @@ function row(seed: number, overrides: Partial<SimulationRunResult> = {}): Simula
     nearDeathCount: seed,
     hamiltonianEntries: 0,
     hamiltonianTicks: 0,
+    terminalContext: { strategy: 'escape', riskLevel: 'critical', riskScore: 90, safeMoves: 1, summary: 'CRITICAL' },
     levelReached: 1,
     levelCompleted: false,
     ...overrides,
@@ -31,7 +32,7 @@ function row(seed: number, overrides: Partial<SimulationRunResult> = {}): Simula
 }
 
 describe('aggregateRunResults', () => {
-  it('computes deterministic summaries, counts and bounded top failures', () => {
+  it('computes deterministic summaries, failure clusters, strategy outcomes and bounded top failures', () => {
     const report = aggregateRunResults([
       row(1),
       row(2, { deathCause: 'self-collision' }),
@@ -42,6 +43,8 @@ describe('aggregateRunResults', () => {
     expect(report.runCount).toBe(4);
     expect(report.terminalCounts).toEqual({ death: 2, 'board-filled': 1, 'simulation-cap': 1, 'no-move': 0 });
     expect(report.deathCauses).toEqual({ 'self-collision': 1, 'wall-collision': 1 });
+    expect(Object.values(report.failurePatterns).reduce((sum, count) => sum + count, 0)).toBe(3);
+    expect(report.strategyEffectiveness.hunt).toEqual({ runsUsed: 4, deaths: 2, boardFilled: 1, meanMaxOccupancyPercent: 25, meanTicksSurvived: 2.5 });
     expect(report.ticks).toEqual({ min: 1, max: 4, mean: 2.5, p50: 2, p95: 4, p99: 4 });
     expect(report.topFailures.map((item) => item.seed)).toEqual([3, 2]);
     expect(report.levelFunnel).toEqual([{ level: 1, reached: 4, completed: 1 }]);
