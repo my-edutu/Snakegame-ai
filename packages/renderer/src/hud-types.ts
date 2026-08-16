@@ -1,6 +1,7 @@
 export type HudRiskBand = 'low' | 'guarded' | 'high' | 'critical';
 export type HudLifecycle = 'playing' | 'celebrating' | 'awaiting-operator' | 'paused' | 'summary' | 'restart-countdown';
 export type HudTargetUnit = 'percent' | 'score' | 'length' | 'level' | 'ticks' | 'count';
+export type HudDataCompleteness = 'rich' | 'legacy';
 
 export interface HudLevelIdentity { number: number; name: string; total: number }
 export interface HudRunState { number: number; elapsedTicks: number; tickDurationMs: number; levelStreak: number; lifecycle: HudLifecycle; countdownTicksRemaining: number }
@@ -12,6 +13,7 @@ export interface HudRecordTarget { id: string; label: string; current: number; t
 export interface HudRunSummary { score: number; maxLength: number; maxOccupancyPercent: number; foodEaten: number; ticksSurvived: number; levelReached: number; newRecords: readonly string[] }
 
 export interface HudSnapshotInput {
+  completeness?: HudDataCompleteness;
   level: HudLevelIdentity;
   run: HudRunState;
   primary: HudPrimaryMetrics;
@@ -24,6 +26,7 @@ export interface HudSnapshotInput {
 }
 
 export interface HudSnapshot {
+  readonly completeness: HudDataCompleteness;
   readonly level: Readonly<HudLevelIdentity>;
   readonly run: Readonly<HudRunState>;
   readonly primary: Readonly<HudPrimaryMetrics>;
