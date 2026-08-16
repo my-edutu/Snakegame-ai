@@ -7,7 +7,7 @@ import { humanReport, stableReportJson } from './report.js';
 import { generateSeedCorpus } from './seed-corpus.js';
 import type { ReplayArtifact, SimulationExecutionConfig } from './types.js';
 
-interface ParsedArgs { readonly command: 'simulate' | 'replay'; readonly values: Readonly<Record<string, string | boolean>> }
+export interface ParsedArgs { readonly command: 'simulate' | 'replay'; readonly values: Readonly<Record<string, string | boolean>> }
 
 export function parseCliArgs(argv: readonly string[]): ParsedArgs {
   const command = argv[0];
@@ -69,12 +69,4 @@ export async function runCli(argv: readonly string[]): Promise<string> {
   const outputPath = parsed.values.json;
   if (typeof outputPath === 'string') writeFileSync(outputPath, json, 'utf8');
   return parsed.values['json-only'] === true ? json : humanReport(report);
-}
-
-const direct = process.argv.slice(2);
-if (direct.length > 0) {
-  runCli(direct).then((output) => process.stdout.write(output)).catch((error: unknown) => {
-    process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
-    process.exitCode = 1;
-  });
 }
