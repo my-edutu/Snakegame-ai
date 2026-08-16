@@ -38,8 +38,8 @@ const wrapCell = (observation: AiObservation, cell: Vec2): Vec2 => ({
 });
 
 export function resolveTopologyStep(observation: AiObservation, raw: Vec2): Vec2 {
-  let position = observation.wrap ? wrapCell(observation, raw) : raw;
-  for (const portal of observation.portals) {
+  let position = observation.wrap === true ? wrapCell(observation, raw) : raw;
+  for (const portal of observation.portals ?? []) {
     if (equalVec(portal.a, position)) { position = { ...portal.b }; break; }
     if (equalVec(portal.b, position)) { position = { ...portal.a }; break; }
   }
