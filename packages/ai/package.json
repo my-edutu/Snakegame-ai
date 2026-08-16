@@ -1,6 +1,7 @@
 {
-  "name": "@snake/engine",
+  "name": "@snake/ai",
   "version": "0.1.0",
+  "private": true,
   "type": "module",
   "exports": {
     ".": {
@@ -9,7 +10,10 @@
     }
   },
   "types": "./src/index.ts",
-  "dependencies": { "@snake/shared": "workspace:*" },
+  "dependencies": {
+    "@snake/shared": "workspace:*",
+    "@snake/engine": "workspace:*"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",

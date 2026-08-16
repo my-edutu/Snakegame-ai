@@ -1,16 +1,16 @@
-name: Phase 1 Core Engine CI
+name: Snake Core CI
 
 on:
   pull_request:
     branches: [main]
   push:
-    branches: [main, phase-01-core-engine]
+    branches: [main]
 
 permissions:
   contents: read
 
 concurrency:
-  group: phase-01-${{ github.workflow }}-${{ github.ref }}
+  group: snake-core-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -48,13 +48,21 @@ jobs:
       - name: Build packages
         run: pnpm build
 
-      - name: Scan engine for forbidden APIs
+      - name: Scan deterministic core for forbidden APIs
         run: pnpm check:forbidden
 
-      - name: Verify repeatable headless output
+      - name: Verify repeatable engine headless output
         shell: bash
         run: |
           set -euo pipefail
-          pnpm headless | tee /tmp/headless-a.txt
-          pnpm headless | tee /tmp/headless-b.txt
-          diff -u /tmp/headless-a.txt /tmp/headless-b.txt
+          pnpm headless | tee /tmp/headless-engine-a.txt
+          pnpm headless | tee /tmp/headless-engine-b.txt
+          diff -u /tmp/headless-engine-a.txt /tmp/headless-engine-b.txt
+
+      - name: Verify repeatable AI pathfinding output
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm headless:ai | tee /tmp/headless-ai-a.txt
+          pnpm headless:ai | tee /tmp/headless-ai-b.txt
+          diff -u /tmp/headless-ai-a.txt /tmp/headless-ai-b.txt
