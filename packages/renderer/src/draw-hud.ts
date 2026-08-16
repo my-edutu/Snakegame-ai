@@ -98,15 +98,23 @@ export const createHudDrawableManager = (layer: Container): HudDrawableManager =
     if (destroyed) return;
     const inset = Math.max(12, layout.safeMargin * 0.46);
     const strategy = derivePublicStrategyCopy(snapshot.strategy);
-    const target = selectNextHudTarget(snapshot);
+    const target = snapshot.completeness === 'rich' ? selectNextHudTarget(snapshot) : null;
     const riskBand = snapshot.risk.band.toUpperCase();
     const risk = `${riskBand} RISK  ${Math.round(snapshot.risk.score)}%`;
-    const level = `LEVEL ${snapshot.level.number}/${snapshot.level.total}  ${snapshot.level.name.toUpperCase()}`;
-    const timer = `RUN ${snapshot.run.number}  •  ${formatHudDuration(snapshot.run.elapsedTicks, snapshot.run.tickDurationMs)}`;
-    const primary = `LENGTH  ${snapshot.primary.length}\nOCCUPANCY  ${percentage(snapshot.primary.occupancyPercent)}\nSCORE  ${Math.round(snapshot.primary.score).toLocaleString('en-US')}\nFOOD  ${snapshot.primary.foodEaten}  •  SAFE MOVES  ${snapshot.primary.safeMoves}`;
-    const record = target === null
-      ? `BEST OCCUPANCY  ${percentage(snapshot.records.bestOccupancyPercent)}\nHIGHEST LEVEL  ${snapshot.records.highestLevel}\nGAMES  ${snapshot.records.totalGames}  •  DEATHS  ${snapshot.records.deaths}\nSTREAK  ${snapshot.run.levelStreak}`
-      : `${target.label}\n${formatTarget(target.current, target.unit)}  →  ${formatTarget(target.target, target.unit)}\nBEST OCCUPANCY  ${percentage(snapshot.records.bestOccupancyPercent)}\nHIGHEST LEVEL  ${snapshot.records.highestLevel}`;
+    const level = snapshot.completeness === 'rich'
+      ? `LEVEL ${snapshot.level.number}/${snapshot.level.total}  ${snapshot.level.name.toUpperCase()}`
+      : `LEVEL ${snapshot.level.number}  ${snapshot.level.name.toUpperCase()}`;
+    const timer = snapshot.completeness === 'rich'
+      ? `RUN ${snapshot.run.number}  •  ${formatHudDuration(snapshot.run.elapsedTicks, snapshot.run.tickDurationMs)}`
+      : 'LIVE';
+    const primary = snapshot.completeness === 'rich'
+      ? `LENGTH  ${snapshot.primary.length}\nOCCUPANCY  ${percentage(snapshot.primary.occupancyPercent)}\nSCORE  ${Math.round(snapshot.primary.score).toLocaleString('en-US')}\nFOOD  ${snapshot.primary.foodEaten}  •  SAFE MOVES  ${snapshot.primary.safeMoves}`
+      : `LENGTH  ${snapshot.primary.length}\nOCCUPANCY  ${percentage(snapshot.primary.occupancyPercent)}\nSCORE  ${Math.round(snapshot.primary.score).toLocaleString('en-US')}`;
+    const record = snapshot.completeness === 'legacy'
+      ? 'RICH RUN STATS\nAWAITING INTEGRATED RUNTIME'
+      : target === null
+        ? `BEST OCCUPANCY  ${percentage(snapshot.records.bestOccupancyPercent)}\nHIGHEST LEVEL  ${snapshot.records.highestLevel}\nGAMES  ${snapshot.records.totalGames}  •  DEATHS  ${snapshot.records.deaths}\nSTREAK  ${snapshot.run.levelStreak}`
+        : `${target.label}\n${formatTarget(target.current, target.unit)}  →  ${formatTarget(target.target, target.unit)}\nBEST OCCUPANCY  ${percentage(snapshot.records.bestOccupancyPercent)}\nHIGHEST LEVEL  ${snapshot.records.highestLevel}`;
     const center = centerCopy(snapshot);
 
     presentation = { levelText: level, timerText: timer, strategyText: strategy, riskText: risk, primaryText: primary, recordText: record, centerText: center };
