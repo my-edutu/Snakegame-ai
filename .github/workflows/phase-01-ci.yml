@@ -63,11 +63,16 @@ jobs:
       - name: Build premium renderer preview
         run: pnpm preview:build
 
+      - name: Verify compiled preview in Chrome
+        run: pnpm renderer:browser
+
       - name: Upload premium renderer preview
         uses: actions/upload-artifact@v4
         with:
           name: phase-08-render-preview
-          path: apps/render-preview/dist
+          path: |
+            apps/render-preview/dist
+            apps/render-preview/browser-smoke
           if-no-files-found: error
           retention-days: 3
 
