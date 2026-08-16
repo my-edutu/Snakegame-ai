@@ -8,6 +8,7 @@ const observation: AiObservation = {
   body: [{ x: 4, y: 4 }, { x: 3, y: 4 }, { x: 2, y: 4 }, { x: 1, y: 4 }],
   direction: 'right',
   pendingGrowth: 0,
+  growthPerFood: 1,
   food: [{ id: 'food-demo', type: 'normal', value: 1, position: { x: 9, y: 4 } }],
   obstacles: [
     { id: 'wall-a', position: { x: 7, y: 3 } },
