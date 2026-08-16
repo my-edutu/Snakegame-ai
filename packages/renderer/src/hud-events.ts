@@ -31,6 +31,8 @@ export class HudEventQueue {
   private readonly seenIds = new Set<string>();
   private readonly seenOrder: string[] = [];
   private readonly lastAcceptedByKind = new Map<HudEngagementEventKind, number>();
+  private activeId: string | null = null;
+  private activeSinceTick: number | null = null;
   private destroyed = false;
 
   constructor(options: HudEventQueueOptions) {
@@ -56,10 +58,12 @@ export class HudEventQueue {
       for (let i = 1; i < this.pending.length; i += 1) {
         const current = this.pending[i]!;
         const worst = this.pending[worstIndex]!;
-        if (PRIORITY[current.kind] < PRIORITY[worst.kind] || (PRIORITY[current.kind] === PRIORITY[worst.kind] && current.tick < worst.tick)) worstIndex = i;
+        if (current.id === this.activeId) continue;
+        if (worst.id === this.activeId || PRIORITY[current.kind] < PRIORITY[worst.kind] || (PRIORITY[current.kind] === PRIORITY[worst.kind] && current.tick < worst.tick)) worstIndex = i;
       }
       const worst = this.pending[worstIndex]!;
       if (PRIORITY[stored.kind] < PRIORITY[worst.kind]) return false;
+      if (worst.id === this.activeId) return false;
       this.pending.splice(worstIndex, 1);
     }
 
@@ -70,23 +74,33 @@ export class HudEventQueue {
   }
 
   active(tick: number): HudEngagementEvent | null {
-    if (!Number.isInteger(tick) || tick < 0) throw new RangeError('tick must be a nonnegative integer.');
-    this.removeExpired(tick);
-    let selected: HudEngagementEvent | null = null;
-    for (const candidate of this.pending) {
-      if (candidate.tick > tick) continue;
-      if (selected === null || PRIORITY[candidate.kind] > PRIORITY[selected.kind] || (PRIORITY[candidate.kind] === PRIORITY[selected.kind] && candidate.tick < selected.tick)) selected = candidate;
+    this.assertTick(tick);
+    this.expireActive(tick);
+
+    const current = this.activeId === null ? null : this.pending.find((candidate) => candidate.id === this.activeId) ?? null;
+    const best = this.selectBestEligible(tick);
+    if (best === null) return current;
+
+    if (current === null || PRIORITY[best.kind] > PRIORITY[current.kind]) {
+      this.activeId = best.id;
+      this.activeSinceTick = tick;
+      return best;
     }
-    return selected;
+    return current;
   }
 
-  advance(tick: number): void { this.removeExpired(tick); }
+  advance(tick: number): void {
+    this.assertTick(tick);
+    this.expireActive(tick);
+  }
 
   reset(): void {
     this.pending.length = 0;
     this.seenIds.clear();
     this.seenOrder.length = 0;
     this.lastAcceptedByKind.clear();
+    this.activeId = null;
+    this.activeSinceTick = null;
   }
 
   destroy(): void {
@@ -95,11 +109,32 @@ export class HudEventQueue {
     this.destroyed = true;
   }
 
-  private removeExpired(tick: number): void {
-    for (let i = this.pending.length - 1; i >= 0; i -= 1) {
-      const candidate = this.pending[i]!;
-      if (tick >= candidate.tick + candidate.durationTicks) this.pending.splice(i, 1);
+  private selectBestEligible(tick: number): HudEngagementEvent | null {
+    let selected: HudEngagementEvent | null = null;
+    for (const candidate of this.pending) {
+      if (candidate.tick > tick || candidate.id === this.activeId) continue;
+      if (selected === null || PRIORITY[candidate.kind] > PRIORITY[selected.kind] || (PRIORITY[candidate.kind] === PRIORITY[selected.kind] && candidate.tick < selected.tick)) selected = candidate;
     }
+    return selected;
+  }
+
+  private expireActive(tick: number): void {
+    if (this.activeId === null || this.activeSinceTick === null) return;
+    const active = this.pending.find((candidate) => candidate.id === this.activeId);
+    if (active === undefined) {
+      this.activeId = null;
+      this.activeSinceTick = null;
+      return;
+    }
+    if (tick < this.activeSinceTick + active.durationTicks) return;
+    const index = this.pending.findIndex((candidate) => candidate.id === active.id);
+    if (index >= 0) this.pending.splice(index, 1);
+    this.activeId = null;
+    this.activeSinceTick = null;
+  }
+
+  private assertTick(tick: number): void {
+    if (!Number.isInteger(tick) || tick < 0) throw new RangeError('tick must be a nonnegative integer.');
   }
 
   private remember(id: string): void {
