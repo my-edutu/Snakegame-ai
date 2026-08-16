@@ -6,6 +6,7 @@ export interface SimulatedState {
   readonly body: readonly Vec2[];
   readonly direction: Direction;
   readonly pendingGrowth: number;
+  readonly growthPerFood: number;
   readonly food: readonly AiFood[];
   readonly obstacles: readonly AiObstacle[];
   readonly hazards: readonly AiHazard[];
@@ -30,6 +31,7 @@ export function createSimulatedState(observation: AiObservation): SimulatedState
     body: observation.body.map(cloneVec),
     direction: observation.direction,
     pendingGrowth: observation.pendingGrowth,
+    growthPerFood: observation.growthPerFood,
     food: observation.food.map(cloneFood),
     obstacles: observation.obstacles.map((o) => ({ ...o, position: cloneVec(o.position) })),
     hazards: observation.hazards.map((h) => ({ ...h, position: cloneVec(h.position) })),
@@ -48,16 +50,15 @@ export function simulateMove(state: SimulatedState, direction: Direction): Simul
   }
 
   const eaten = state.food.find((item) => equalVec(item.position, next));
-  const growsThisStep = state.pendingGrowth > 0 || Boolean(eaten);
-  const tailIndexExcluded = growsThisStep ? state.body.length : Math.max(0, state.body.length - 1);
+  const tailWillVacate = state.pendingGrowth === 0 && !eaten;
+  const tailIndexExcluded = tailWillVacate ? Math.max(0, state.body.length - 1) : state.body.length;
   const occupied = new Set(state.body.slice(0, tailIndexExcluded).map(key));
   if (occupied.has(key(next))) return { legal: false, consumedFoodId: null, state: null };
   if (state.obstacles.some((o) => equalVec(o.position, next))) return { legal: false, consumedFoodId: null, state: null };
   if (state.hazards.some((h) => equalVec(h.position, next))) return { legal: false, consumedFoodId: null, state: null };
 
   const nextBody = [cloneVec(next), ...state.body.map(cloneVec)];
-  let nextPendingGrowth = state.pendingGrowth;
-  if (eaten) nextPendingGrowth += 1;
+  let nextPendingGrowth = state.pendingGrowth + (eaten ? state.growthPerFood : 0);
   if (nextPendingGrowth > 0) nextPendingGrowth -= 1;
   else nextBody.pop();
 
@@ -69,6 +70,7 @@ export function simulateMove(state: SimulatedState, direction: Direction): Simul
       body: nextBody,
       direction,
       pendingGrowth: nextPendingGrowth,
+      growthPerFood: state.growthPerFood,
       food: state.food.filter((f) => f.id !== eaten?.id).map(cloneFood),
       obstacles: state.obstacles.map((o) => ({ ...o, position: cloneVec(o.position) })),
       hazards: state.hazards.map((h) => ({ ...h, position: cloneVec(h.position) })),
