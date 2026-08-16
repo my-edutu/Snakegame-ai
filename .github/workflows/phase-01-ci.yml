@@ -86,6 +86,9 @@ jobs:
       - name: Verify worker-thread equivalence
         run: pnpm simulate:parallel-smoke > /tmp/simulation-parallel.json
 
+      - name: Verify worker failure propagation
+        run: pnpm simulate:worker-failure-smoke
+
       - name: Verify 1000-run bounded batch
         run: pnpm simulate:benchmark1000 > /tmp/simulation-1000.json
 
