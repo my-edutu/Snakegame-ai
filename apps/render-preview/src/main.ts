@@ -137,7 +137,7 @@ const createDemoFrame = (tick: number): RenderFrame => {
 };
 
 const bootPreview = async (): Promise<void> => {
-  stage.dataset.rendererState = 'initializing';
+  stage.dataset['rendererState'] = 'initializing';
   const renderer = new SnakeRenderer({
     skin: 'galaxy',
     theme: 'neon-grid',
@@ -169,7 +169,7 @@ const bootPreview = async (): Promise<void> => {
       renderer.renderFrame(createDemoFrame(tick));
     }, TICK_MS);
 
-    stage.dataset.rendererState = 'ready';
+    stage.dataset['rendererState'] = 'ready';
     window.addEventListener('pagehide', () => {
       window.clearInterval(timer);
       renderer.destroy();
@@ -181,6 +181,6 @@ const bootPreview = async (): Promise<void> => {
 };
 
 void bootPreview().catch((error: unknown) => {
-  stage.dataset.rendererState = 'error';
+  stage.dataset['rendererState'] = 'error';
   console.error('AI Snake renderer preview failed to start', error);
 });
