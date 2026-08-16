@@ -6,7 +6,7 @@ const base = {
   allRisky: false,
   safeMoves: 3,
   riskScore: 20,
-  occupancyRatio: 0.2,
+  highOccupancy: false,
   hamiltonianAvailable: false,
   hamiltonianPreservable: false,
   foodSafe: true,
@@ -23,8 +23,8 @@ describe('hybrid strategy state machine', () => {
 
   it('selects tail-follow, Hamiltonian, endgame, and hunt from evidence', () => {
     expect(selectStrategy({ mode: 'explore', ticksInMode: 10 }, { ...base, foodSafe: false, tailPreferred: true }, 1).mode).toBe('tail-follow');
-    expect(selectStrategy({ mode: 'explore', ticksInMode: 10 }, { ...base, occupancyRatio: 0.9, hamiltonianAvailable: true, hamiltonianPreservable: true }, 1).mode).toBe('hamiltonian');
-    expect(selectStrategy({ mode: 'explore', ticksInMode: 10 }, { ...base, occupancyRatio: 0.9 }, 1).mode).toBe('endgame');
+    expect(selectStrategy({ mode: 'explore', ticksInMode: 10 }, { ...base, highOccupancy: true, hamiltonianAvailable: true, hamiltonianPreservable: true }, 1).mode).toBe('hamiltonian');
+    expect(selectStrategy({ mode: 'explore', ticksInMode: 10 }, { ...base, highOccupancy: true }, 1).mode).toBe('endgame');
     expect(selectStrategy({ mode: 'explore', ticksInMode: 10 }, base, 1).mode).toBe('hunt');
   });
 
