@@ -21,6 +21,7 @@ export interface LevelDecisionPolicyContext {
   readonly decisionSequence: number;
 }
 export type LevelDecisionPolicy = (context: LevelDecisionPolicyContext) => Direction | null;
+export type LevelDecisionObserver = (context: LevelDecisionPolicyContext) => void;
 
 const initialStrategy = (): StrategyState => ({ mode: 'explore', ticksInMode: 10_000 });
 const emptyTerminalContext = (): TerminalDecisionContext => ({ strategy: null, riskLevel: null, riskScore: 0, safeMoves: 0, summary: null });
@@ -40,7 +41,7 @@ function spawnDueFood(level: LevelDefinition, seed: number, tick: number, state:
   return [...state.food.map((food) => ({ id: food.id, type: food.type, position: { ...food.position }, value: food.value, ...(food.growthDelta === undefined ? {} : { growthDelta: food.growthDelta }), ...(food.scoreDelta === undefined ? {} : { scoreDelta: food.scoreDelta }) })), { id: `${level.id}-food-${tick}-${state.food.length}`, type: chosen.id, position, value: chosen.value, growthDelta: chosen.growthDelta, scoreDelta: chosen.scoreDelta }];
 }
 
-export function runLevelSimulationWithPolicy(level: LevelDefinition, seed: number, harness: SimulationHarnessConfig, policy?: LevelDecisionPolicy): LevelSimulationResult {
+export function runLevelSimulationWithPolicy(level: LevelDefinition, seed: number, harness: SimulationHarnessConfig, policy?: LevelDecisionPolicy, observer?: LevelDecisionObserver): LevelSimulationResult {
   if (!Number.isInteger(harness.maxTicks) || harness.maxTicks < 1) throw new RangeError('maxTicks must be a positive integer.');
   const compiled = compileLevel(level, seed);
   const engine = createEngine(compiled.engine as EngineConfig);
@@ -59,21 +60,20 @@ export function runLevelSimulationWithPolicy(level: LevelDefinition, seed: numbe
     const staticObstacles = compiled.engine.obstacles.filter((item) => ![...movingIds].some((id) => item.id.startsWith(`${id}-`)));
     const movingHazardIds = new Set(level.hazards.filter((item) => item.kind === 'moving').map((item) => item.id));
     const staticHazards = compiled.engine.hazards.filter((item) => ![...movingHazardIds].some((id) => item.id.startsWith(`${id}-`)));
-    engine.applyEnvironment({
-      obstacles: [...staticObstacles, ...frame.movingObstacles, ...frame.chaosCells.map((position, i) => ({ id: `chaos-${i}`, position }))],
-      hazards: [...staticHazards, ...frame.movingHazards], activeBounds: frame.activeBounds,
-    });
+    engine.applyEnvironment({ obstacles: [...staticObstacles, ...frame.movingObstacles, ...frame.chaosCells.map((position, i) => ({ id: `chaos-${i}`, position }))], hazards: [...staticHazards, ...frame.movingHazards], activeBounds: frame.activeBounds });
     if (frame.foodSpawnDue) engine.applyEnvironment({ food: spawnDueFood(level, seed, beforeFrame.tick, engine.getState()) });
 
     const before = engine.getState();
     if (!before.snake.alive || before.lifecycle === 'death') { terminalReason = 'death'; break; }
     const decision = decideSurvivalMove(createObservation(before), strategy, compiled.ai);
+    const decisionContext = { level, seed, state: before, decision, decisionSequence: before.ai.decisionSequence };
+    observer?.(decisionContext);
     terminalContext = { strategy: decision.strategy.mode, riskLevel: decision.risk.level, riskScore: decision.risk.score, safeMoves: decision.risk.contributors.safeMoves, summary: decision.summary };
     decisionCount += 1; riskSum += decision.risk.score; peakRisk = Math.max(peakRisk, decision.risk.score); totalDecisionNodes += decision.nodesEvaluated; peakDecisionNodes = Math.max(peakDecisionNodes, decision.nodesEvaluated);
     if (decision.risk.contributors.safeMoves <= 1) nearDeathCount += 1;
     if (decision.strategy.mode !== strategy.mode) { transitions.push({ from: strategy.mode, to: decision.strategy.mode, tick: before.tick }); if (decision.strategy.mode === 'hamiltonian') hamiltonianEntries += 1; }
     strategy = decision.strategy; strategyTicks[strategy.mode] = (strategyTicks[strategy.mode] ?? 0) + 1; if (strategy.mode === 'hamiltonian') hamiltonianTicks += 1;
-    const selectedDirection = policy ? policy({ level, seed, state: before, decision, decisionSequence: before.ai.decisionSequence }) : decision.direction;
+    const selectedDirection = policy ? policy(decisionContext) : decision.direction;
     if (!selectedDirection) { terminalReason = 'no-move'; break; }
     engine.step(selectedDirection);
     const after = engine.getState();
@@ -84,16 +84,8 @@ export function runLevelSimulationWithPolicy(level: LevelDefinition, seed: numbe
   }
 
   const state = engine.getState();
-  const run: SimulationRunResult = {
-    seed: seed >>> 0, terminalReason, deathCause: state.lastDeath?.cause ?? null, ticksSurvived: state.run.ticksSurvived,
-    maxLength: state.run.maxLength, maxOccupancyPercent: state.run.maxOccupancyPercent, score: state.score.score, foodConsumed: state.score.foodEaten,
-    strategyTicks, strategyTransitions: transitions, averageRisk: decisionCount === 0 ? 0 : riskSum / decisionCount, peakRisk, totalDecisionNodes,
-    averageDecisionNodes: decisionCount === 0 ? 0 : totalDecisionNodes / decisionCount, peakDecisionNodes, nearDeathCount, hamiltonianEntries, hamiltonianTicks,
-    terminalContext, levelReached: 1, levelCompleted: progression.complete,
-  };
+  const run: SimulationRunResult = { seed: seed >>> 0, terminalReason, deathCause: state.lastDeath?.cause ?? null, ticksSurvived: state.run.ticksSurvived, maxLength: state.run.maxLength, maxOccupancyPercent: state.run.maxOccupancyPercent, score: state.score.score, foodConsumed: state.score.foodEaten, strategyTicks, strategyTransitions: transitions, averageRisk: decisionCount === 0 ? 0 : riskSum / decisionCount, peakRisk, totalDecisionNodes, averageDecisionNodes: decisionCount === 0 ? 0 : totalDecisionNodes / decisionCount, peakDecisionNodes, nearDeathCount, hamiltonianEntries, hamiltonianTicks, terminalContext, levelReached: 1, levelCompleted: progression.complete };
   return { levelId: level.id, levelNumber: level.number, levelVersion: level.version, levelCompleted: progression.complete, progression, run };
 }
 
-export function runLevelSimulation(level: LevelDefinition, seed: number, harness: SimulationHarnessConfig): LevelSimulationResult {
-  return runLevelSimulationWithPolicy(level, seed, harness);
-}
+export function runLevelSimulation(level: LevelDefinition, seed: number, harness: SimulationHarnessConfig): LevelSimulationResult { return runLevelSimulationWithPolicy(level, seed, harness); }

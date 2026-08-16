@@ -1,0 +1,57 @@
+import type { AllTimeRecords } from './records.js';
+import type { LifecyclePhase, LifecycleState } from './lifecycle.js';
+
+export interface ProgressionState { readonly lifecycle: LifecycleState; readonly records: AllTimeRecords }
+export interface ProgressionSnapshotV1 extends ProgressionState { readonly schemaVersion: 1 }
+
+const phases = new Set<LifecyclePhase>(['playing', 'celebrating', 'awaiting-operator', 'paused', 'summary', 'restart-countdown']);
+const num = (value: unknown, name: string, integer = false, positive = false): number => {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || (integer && !Number.isInteger(value)) || (positive && value < 1)) throw new RangeError(`${name} is invalid.`);
+  return value;
+};
+
+export function serializeProgressionState(state: ProgressionState): ProgressionSnapshotV1 {
+  return { schemaVersion: 1, lifecycle: { ...state.lifecycle }, records: { ...state.records } };
+}
+
+export function parseProgressionState(input: unknown): ProgressionState {
+  if (!input || typeof input !== 'object') throw new TypeError('Snapshot must be an object.');
+  const root = input as Record<string, unknown>;
+  if (root['schemaVersion'] !== 1) throw new RangeError('Unsupported progression snapshot schema.');
+  if (!root['lifecycle'] || typeof root['lifecycle'] !== 'object' || !root['records'] || typeof root['records'] !== 'object') throw new TypeError('Snapshot lifecycle and records are required.');
+
+  const l = root['lifecycle'] as Record<string, unknown>;
+  if (typeof l['phase'] !== 'string' || !phases.has(l['phase'] as LifecyclePhase)) throw new RangeError('Invalid lifecycle phase.');
+  const levelCount = num(l['levelCount'], 'levelCount', true, true);
+  const currentLevel = num(l['currentLevel'], 'currentLevel', true, true);
+  if (currentLevel > levelCount) throw new RangeError('currentLevel exceeds levelCount.');
+  const pending = l['pendingLevel'] === null ? null : num(l['pendingLevel'], 'pendingLevel', true, true);
+  if (pending !== null && pending > levelCount) throw new RangeError('pendingLevel exceeds levelCount.');
+  const lifecycle: LifecycleState = {
+    phase: l['phase'] as LifecyclePhase,
+    runNumber: num(l['runNumber'], 'runNumber', true, true),
+    currentLevel,
+    levelCount,
+    levelStreak: num(l['levelStreak'], 'levelStreak', true),
+    pendingLevel: pending,
+    countdownTicksRemaining: num(l['countdownTicksRemaining'], 'countdownTicksRemaining', true),
+    celebrationTicksRemaining: num(l['celebrationTicksRemaining'], 'celebrationTicksRemaining', true),
+  };
+
+  const r = root['records'] as Record<string, unknown>;
+  const fastest = r['fastestCompletionTicks'] === null ? null : num(r['fastestCompletionTicks'], 'fastestCompletionTicks', true, true);
+  const records: AllTimeRecords = {
+    totalGames: num(r['totalGames'], 'totalGames', true),
+    deaths: num(r['deaths'], 'deaths', true),
+    totalFood: num(r['totalFood'], 'totalFood'),
+    totalPlayTicks: num(r['totalPlayTicks'], 'totalPlayTicks'),
+    highestLevel: num(r['highestLevel'], 'highestLevel', true),
+    longestLevelStreak: num(r['longestLevelStreak'], 'longestLevelStreak', true),
+    maxLength: num(r['maxLength'], 'maxLength'),
+    maxOccupancyPercent: num(r['maxOccupancyPercent'], 'maxOccupancyPercent'),
+    longestSurvivalTicks: num(r['longestSurvivalTicks'], 'longestSurvivalTicks'),
+    highScore: num(r['highScore'], 'highScore'),
+    fastestCompletionTicks: fastest,
+  };
+  return { lifecycle: { ...lifecycle }, records: { ...records } };
+}
