@@ -18,8 +18,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "simulate": "node dist/cli.js simulate",
-    "replay": "node dist/cli.js replay",
+    "simulate": "node dist/cli-entry.js simulate",
+    "replay": "node dist/cli-entry.js replay",
     "smoke": "node dist/smoke.js"
   }
 }
