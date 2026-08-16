@@ -3,11 +3,16 @@ import {
   buildBlockedCellSet,
   coordinateKey,
   enumerateNeighborsWithBlocked,
-  isInsideObservation,
   type GraphOptions,
 } from './graph.js';
 import type { AiObservation } from './observation.js';
-import { reconstructRoute, type PredecessorStep, type SearchResult } from './path.js';
+import {
+  classifySearchEndpoints,
+  reconstructRoute,
+  type PredecessorStep,
+  type SearchOutcome,
+  type SearchResult,
+} from './path.js';
 
 export interface AStarOptions extends GraphOptions {}
 
@@ -68,12 +73,12 @@ function manhattan(a: Vec2, b: Vec2): number {
   return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 }
 
-function invalidResult(): SearchResult {
+function emptyResult(outcome: Exclude<SearchOutcome, 'found'>): SearchResult {
   return {
     route: null,
     telemetry: {
       algorithm: 'astar',
-      outcome: 'invalid-target',
+      outcome,
       nodesExplored: 0,
       frontierPeak: 0,
       pathLength: null,
@@ -87,7 +92,10 @@ export function findPathAStar(
   target: Vec2,
   options?: AStarOptions,
 ): SearchResult {
-  if (!isInsideObservation(observation, start) || !isInsideObservation(observation, target)) return invalidResult();
+  const blocked = buildBlockedCellSet(observation, options);
+  const endpointOutcome = classifySearchEndpoints(observation, start, target, blocked);
+  if (endpointOutcome) return emptyResult(endpointOutcome);
+
   if (coordinateKey(start) === coordinateKey(target)) {
     return {
       route: { coordinates: [{ ...start }], directions: [] },
@@ -95,7 +103,6 @@ export function findPathAStar(
     };
   }
 
-  const blocked = buildBlockedCellSet(observation, options);
   const frontier = new MinHeap();
   const gScore = new Map<string, number>();
   const predecessors = new Map<string, PredecessorStep>();

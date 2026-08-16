@@ -6,7 +6,8 @@ import type { AiObservation } from './observation.js';
 export interface CandidateMove {
   readonly direction: Direction;
   readonly legal: boolean;
-  readonly targetDistance: number | null;
+  /** Shortest distance on the current static blocked geometry. Not a future-state survivability prediction. */
+  readonly staticTargetDistance: number | null;
   readonly order: number;
 }
 
@@ -30,27 +31,31 @@ export function rankCandidateMoves(observation: AiObservation, target?: Vec2): r
   const candidates: CandidateMove[] = CANONICAL_DIRECTIONS.map((direction, order) => {
     const next = addVec(observation.head, DIRECTION_DELTAS[direction]);
     const legal = candidateIsLegal(observation, direction, next);
-    let targetDistance: number | null = null;
+    let staticTargetDistance: number | null = null;
 
     if (legal && target) {
       if (equalVec(next, target)) {
-        targetDistance = 0;
+        staticTargetDistance = 0;
       } else {
         const result = findPathBfs(observation, next, target);
-        targetDistance = result.telemetry.outcome === 'found' ? result.telemetry.pathLength : null;
+        staticTargetDistance = result.telemetry.outcome === 'found' ? result.telemetry.pathLength : null;
       }
     }
 
-    return { direction, legal, targetDistance, order };
+    return { direction, legal, staticTargetDistance, order };
   });
 
   return candidates.sort((a, b) => {
     if (a.legal !== b.legal) return a.legal ? -1 : 1;
-    const aReachable = a.targetDistance !== null;
-    const bReachable = b.targetDistance !== null;
+    const aReachable = a.staticTargetDistance !== null;
+    const bReachable = b.staticTargetDistance !== null;
     if (aReachable !== bReachable) return aReachable ? -1 : 1;
-    if (a.targetDistance !== null && b.targetDistance !== null && a.targetDistance !== b.targetDistance) {
-      return a.targetDistance - b.targetDistance;
+    if (
+      a.staticTargetDistance !== null &&
+      b.staticTargetDistance !== null &&
+      a.staticTargetDistance !== b.staticTargetDistance
+    ) {
+      return a.staticTargetDistance - b.staticTargetDistance;
     }
     return a.order - b.order;
   });

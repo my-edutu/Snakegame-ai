@@ -7,18 +7,33 @@ describe('candidate move ranking', () => {
     expect(typeof (ai as Record<string, unknown>).rankCandidateMoves).toBe('function');
   });
 
-  it('prefers legal reachable moves with lower target distance', () => {
+  it('prefers legal reachable moves with lower static target distance', () => {
     const api = ai as any;
-    if (typeof api.rankCandidateMoves !== 'function') return;
     const observation = makeObservation();
     const ranked = api.rankCandidateMoves(observation, { x: 4, y: 2 });
-    expect(ranked[0]).toMatchObject({ direction: 'right', legal: true, targetDistance: 1 });
+    expect(ranked[0]).toMatchObject({ direction: 'right', legal: true, staticTargetDistance: 1 });
+    expect(ranked[0]).not.toHaveProperty('targetDistance');
     expect(ranked.map((item: any) => item.direction)).toHaveLength(4);
+  });
+
+  it('labels distance as static-board telemetry rather than predictive survivability', () => {
+    const api = ai as any;
+    const observation = makeObservation({
+      head: { x: 2, y: 2 },
+      body: [{ x: 2, y: 2 }, { x: 1, y: 2 }, { x: 1, y: 3 }],
+      tail: { x: 1, y: 3 },
+      direction: 'right',
+      pendingGrowth: 0,
+    });
+    const ranked = api.rankCandidateMoves(observation, { x: 4, y: 2 });
+    for (const candidate of ranked) {
+      expect(candidate).toHaveProperty('staticTargetDistance');
+      expect(candidate).not.toHaveProperty('targetDistance');
+    }
   });
 
   it('marks reversal and blocked moves illegal and keeps deterministic order', () => {
     const api = ai as any;
-    if (typeof api.rankCandidateMoves !== 'function') return;
     const observation = makeObservation({
       head: { x: 2, y: 2 },
       body: [{ x: 2, y: 2 }, { x: 1, y: 2 }, { x: 0, y: 2 }],
@@ -36,7 +51,6 @@ describe('candidate move ranking', () => {
 
   it('matches engine tail-vacate legality when growth is or is not pending', () => {
     const api = ai as any;
-    if (typeof api.rankCandidateMoves !== 'function') return;
     const base = makeObservation({
       head: { x: 2, y: 2 },
       body: [{ x: 2, y: 2 }, { x: 2, y: 1 }],

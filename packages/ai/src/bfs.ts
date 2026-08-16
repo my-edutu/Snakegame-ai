@@ -7,16 +7,22 @@ import {
   type GraphOptions,
 } from './graph.js';
 import type { AiObservation } from './observation.js';
-import { reconstructRoute, type PredecessorStep, type SearchResult } from './path.js';
+import {
+  classifySearchEndpoints,
+  reconstructRoute,
+  type PredecessorStep,
+  type SearchOutcome,
+  type SearchResult,
+} from './path.js';
 
 export interface SearchOptions extends GraphOptions {}
 
-function invalidResult(): SearchResult {
+function emptyResult(outcome: Exclude<SearchOutcome, 'found'>): SearchResult {
   return {
     route: null,
     telemetry: {
       algorithm: 'bfs',
-      outcome: 'invalid-target',
+      outcome,
       nodesExplored: 0,
       frontierPeak: 0,
       pathLength: null,
@@ -57,7 +63,9 @@ export function findPathBfs(
   target: Vec2,
   options?: SearchOptions,
 ): SearchResult {
-  if (!isInsideObservation(observation, start) || !isInsideObservation(observation, target)) return invalidResult();
+  const blocked = buildBlockedCellSet(observation, options);
+  const endpointOutcome = classifySearchEndpoints(observation, start, target, blocked);
+  if (endpointOutcome) return emptyResult(endpointOutcome);
 
   if (coordinateKey(start) === coordinateKey(target)) {
     return {
@@ -66,7 +74,6 @@ export function findPathBfs(
     };
   }
 
-  const blocked = buildBlockedCellSet(observation, options);
   const queue: Vec2[] = [{ ...start }];
   const visited = new Set<string>([coordinateKey(start)]);
   const predecessors = new Map<string, PredecessorStep>();

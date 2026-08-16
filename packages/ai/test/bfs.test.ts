@@ -11,7 +11,6 @@ describe('BFS pathfinding', () => {
 
   it('finds the canonical shortest path on an open board', () => {
     const api = ai as any;
-    if (typeof api.findPathBfs !== 'function') return;
     const observation = makeObservation();
     const result = api.findPathBfs(observation, { x: 2, y: 2 }, { x: 4, y: 1 });
     expect(result.telemetry.outcome).toBe('found');
@@ -24,7 +23,6 @@ describe('BFS pathfinding', () => {
 
   it('detours around obstacles without crossing blocked cells', () => {
     const api = ai as any;
-    if (typeof api.findPathBfs !== 'function') return;
     const observation = makeObservation({
       obstacles: [
         { id: 'a', position: { x: 3, y: 2 } },
@@ -38,14 +36,21 @@ describe('BFS pathfinding', () => {
     expect(result.telemetry.pathLength).toBe(4);
   });
 
-  it('handles zero-length, unreachable, and invalid targets explicitly', () => {
+  it('distinguishes invalid, blocked, and unreachable endpoints', () => {
     const api = ai as any;
-    if (typeof api.findPathBfs !== 'function') return;
-    const observation = makeObservation();
-    const same = api.findPathBfs(observation, observation.head, observation.head);
-    expect(same.route.coordinates).toEqual([observation.head]);
-    expect(same.route.directions).toEqual([]);
-    expect(same.telemetry.pathLength).toBe(0);
+    const observation = makeObservation({
+      body: [{ x: 2, y: 2 }, { x: 1, y: 2 }],
+      tail: { x: 1, y: 2 },
+      obstacles: [{ id: 'wall', position: { x: 3, y: 2 } }],
+      hazards: [{ id: 'hazard', position: { x: 2, y: 3 } }],
+    });
+
+    expect(api.findPathBfs(observation, { x: -1, y: 0 }, { x: 4, y: 4 }).telemetry.outcome).toBe('invalid-start');
+    expect(api.findPathBfs(observation, observation.head, { x: 99, y: 99 }).telemetry.outcome).toBe('invalid-target');
+    expect(api.findPathBfs(observation, observation.head, { x: 1, y: 2 }).telemetry.outcome).toBe('blocked-target');
+    expect(api.findPathBfs(observation, observation.head, { x: 3, y: 2 }).telemetry.outcome).toBe('blocked-target');
+    expect(api.findPathBfs(observation, observation.head, { x: 2, y: 3 }).telemetry.outcome).toBe('blocked-target');
+    expect(api.findPathBfs(observation, observation.head, { x: 1, y: 2 }, { traversableTarget: { x: 1, y: 2 } }).telemetry.outcome).toBe('found');
 
     const sealed = makeObservation({
       obstacles: [
@@ -56,12 +61,31 @@ describe('BFS pathfinding', () => {
       ],
     });
     expect(api.findPathBfs(sealed, sealed.head, { x: 4, y: 4 }).telemetry.outcome).toBe('unreachable');
-    expect(api.findPathBfs(observation, observation.head, { x: 99, y: 99 }).telemetry.outcome).toBe('invalid-target');
+  });
+
+  it('returns a zero-length route for an in-bounds identical start and target', () => {
+    const api = ai as any;
+    const observation = makeObservation();
+    const same = api.findPathBfs(observation, observation.head, observation.head);
+    expect(same.route.coordinates).toEqual([observation.head]);
+    expect(same.route.directions).toEqual([]);
+    expect(same.telemetry.pathLength).toBe(0);
+  });
+
+  it('does not alias caller start/target vectors in returned routes', () => {
+    const api = ai as any;
+    const observation = makeObservation();
+    const start = { x: 2, y: 2 };
+    const target = { x: 4, y: 2 };
+    const result = api.findPathBfs(observation, start, target);
+    start.x = 0;
+    target.x = 0;
+    expect(result.route.coordinates[0]).toEqual({ x: 2, y: 2 });
+    expect(result.route.coordinates.at(-1)).toEqual({ x: 4, y: 2 });
   });
 
   it('builds deterministic shortest-distance maps', () => {
     const api = ai as any;
-    if (typeof api.buildDistanceMap !== 'function') return;
     const map = api.buildDistanceMap(makeObservation(), { x: 2, y: 2 });
     expect(map.get('2,2')).toBe(0);
     expect(map.get('2,1')).toBe(1);
