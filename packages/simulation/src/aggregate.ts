@@ -65,6 +65,7 @@ export function aggregateRunResults(results: readonly SimulationRunResult[], opt
     hamiltonian: { entries: hamiltonianEntries, ticks: hamiltonianTicks },
     levelFunnel: [{ level: 1, reached: runCount, completed: levelCompleted }],
     topFailures: failures,
+    topReplays: [],
     ...(options.retainRuns ? { runs: results.map((result) => structuredClone(result)) } : {}),
   };
 }
