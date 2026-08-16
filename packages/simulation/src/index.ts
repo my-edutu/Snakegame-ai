@@ -1,6 +1,7 @@
 export * from './aggregate.js';
 export * from './batch.js';
 export * from './compare.js';
+export * from './failure-run.js';
 export * from './level-batch.js';
 export * from './level-run.js';
 export * from './parallel.js';
