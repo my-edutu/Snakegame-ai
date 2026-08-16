@@ -22,12 +22,13 @@ export class RenderEventBuffer {
     return this.events.length;
   }
 
-  push(event: RenderEvent, currentTick: number): void {
-    if (this.destroyed) return;
+  push(event: RenderEvent, currentTick: number): boolean {
+    if (this.destroyed) return false;
     this.prune(currentTick);
-    if (this.events.some((existing) => existing.id === event.id)) return;
+    if (this.events.some((existing) => existing.id === event.id)) return false;
     this.events.push({ ...event });
     if (this.events.length > this.maxSize) this.events.splice(0, this.events.length - this.maxSize);
+    return true;
   }
 
   values(): readonly RenderEvent[] {
