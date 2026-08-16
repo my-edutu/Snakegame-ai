@@ -33,4 +33,21 @@ describe('candidate move ranking', () => {
     expect(left.legal).toBe(false);
     expect(api.rankCandidateMoves(observation, { x: 4, y: 2 })).toEqual(ranked);
   });
+
+  it('matches engine tail-vacate legality when growth is or is not pending', () => {
+    const api = ai as any;
+    if (typeof api.rankCandidateMoves !== 'function') return;
+    const base = makeObservation({
+      head: { x: 2, y: 2 },
+      body: [{ x: 2, y: 2 }, { x: 2, y: 1 }],
+      tail: { x: 2, y: 1 },
+      direction: 'right',
+      pendingGrowth: 0,
+    });
+    const vacating = api.rankCandidateMoves(base).find((item: any) => item.direction === 'up');
+    expect(vacating.legal).toBe(true);
+
+    const growing = api.rankCandidateMoves({ ...base, pendingGrowth: 1 }).find((item: any) => item.direction === 'up');
+    expect(growing.legal).toBe(false);
+  });
 });
