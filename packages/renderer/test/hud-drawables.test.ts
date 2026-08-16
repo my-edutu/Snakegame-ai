@@ -5,7 +5,7 @@ import { computeHudLayout } from '../src/hud-layout.js';
 import { createHudSnapshot } from '../src/hud-model.js';
 import { getQualityPreset } from '../src/quality.js';
 import { getTheme } from '../src/themes.js';
-import type { HudSnapshotInput, ViewportTransform } from '../src/index.js';
+import type { HudEngagementEvent, HudSnapshotInput, ViewportTransform } from '../src/index.js';
 
 const viewport: ViewportTransform = {
   canvasWidth: 1920,
@@ -41,6 +41,8 @@ const setup = () => {
   const quality = getQualityPreset('balanced').value;
   return { root, manager, layout, theme, quality };
 };
+
+const event = (kind: HudEngagementEvent['kind'], label: string): HudEngagementEvent => ({ id: `${kind}-1`, kind, label, tick: 100, durationTicks: 30 });
 
 describe('HudDrawableManager', () => {
   it('reuses a fixed drawable set through 5000 ordinary updates', () => {
@@ -99,6 +101,38 @@ describe('HudDrawableManager', () => {
 
     expect(manager.getResourceCounts()).toEqual(baseline);
     expect(root.children).toHaveLength(1);
+    manager.destroy();
+  });
+
+  it('shows bounded spectator events during play but preserves lifecycle overlays', () => {
+    const { manager, layout, theme, quality } = setup();
+    const playing = createHudSnapshot(input());
+    manager.update(playing, layout, theme, quality);
+    manager.updateEvent(event('record', 'NEW HIGH SCORE'), layout, theme, quality);
+    expect(manager.getPresentationSnapshot().eventText).toContain('NEW HIGH SCORE');
+
+    const summaryInput = input();
+    summaryInput.run.lifecycle = 'summary';
+    summaryInput.runSummary = { score: 5_100, maxLength: 104, maxOccupancyPercent: 74, foodEaten: 101, ticksSurvived: 3_200, levelReached: 9, newRecords: ['High score'] };
+    manager.update(createHudSnapshot(summaryInput), layout, theme, quality);
+    manager.updateEvent(event('near-death', 'CLOSE CALL'), layout, theme, quality);
+    expect(manager.getPresentationSnapshot().centerText).toContain('RUN SUMMARY');
+    expect(manager.getPresentationSnapshot().eventText).toBe('');
+    manager.destroy();
+  });
+
+  it('uses distinct textual event treatments for record, near-death, milestone, and strategy changes', () => {
+    const { manager, layout, theme, quality } = setup();
+    manager.update(createHudSnapshot(input()), layout, theme, quality);
+    for (const [kind, label, expected] of [
+      ['record', 'NEW HIGH SCORE', 'NEW RECORD'],
+      ['near-death', 'CLOSE CALL', 'CLOSE CALL'],
+      ['milestone', '75% OCCUPANCY', 'MILESTONE'],
+      ['strategy-change', 'TAIL FOLLOW', 'AI STRATEGY'],
+    ] as const) {
+      manager.updateEvent(event(kind, label), layout, theme, quality);
+      expect(manager.getPresentationSnapshot().eventText).toContain(expected);
+    }
     manager.destroy();
   });
 
