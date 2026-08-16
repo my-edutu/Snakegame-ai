@@ -31,8 +31,12 @@ function search(
     : findPathBfs(observation, start, target, options);
 }
 
+function compareIds(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
 function compareFoodTargets(a: AiFood, b: AiFood): number {
-  return a.position.y - b.position.y || a.position.x - b.position.x || a.id.localeCompare(b.id);
+  return a.position.y - b.position.y || a.position.x - b.position.x || compareIds(a.id, b.id);
 }
 
 export function planPathToFood(observation: AiObservation, options: PlannerOptions = {}): FoodPlanResult {
