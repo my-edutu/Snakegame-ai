@@ -9,7 +9,6 @@ describe('A* pathfinding', () => {
 
   it('matches BFS shortest-path length and canonical route on representative boards', () => {
     const api = ai as any;
-    if (typeof api.findPathAStar !== 'function' || typeof api.findPathBfs !== 'function') return;
     const observation = makeObservation({
       obstacles: [
         { id: 'a', position: { x: 3, y: 2 } },
@@ -23,9 +22,31 @@ describe('A* pathfinding', () => {
     expect(astar.route).toEqual(bfs.route);
   });
 
+  it('shares BFS endpoint validation semantics', () => {
+    const api = ai as any;
+    const observation = makeObservation({
+      body: [{ x: 2, y: 2 }, { x: 1, y: 2 }],
+      tail: { x: 1, y: 2 },
+      obstacles: [{ id: 'wall', position: { x: 3, y: 2 } }],
+      hazards: [{ id: 'hazard', position: { x: 2, y: 3 } }],
+    });
+
+    const cases = [
+      [{ x: -1, y: 0 }, { x: 4, y: 4 }, undefined, 'invalid-start'],
+      [observation.head, { x: 99, y: 99 }, undefined, 'invalid-target'],
+      [observation.head, { x: 1, y: 2 }, undefined, 'blocked-target'],
+      [observation.head, { x: 3, y: 2 }, undefined, 'blocked-target'],
+      [observation.head, { x: 2, y: 3 }, undefined, 'blocked-target'],
+      [observation.head, { x: 1, y: 2 }, { traversableTarget: { x: 1, y: 2 } }, 'found'],
+    ] as const;
+
+    for (const [start, target, options, outcome] of cases) {
+      expect(api.findPathAStar(observation, start, target, options).telemetry.outcome).toBe(outcome);
+    }
+  });
+
   it('is stable across repeated tie-heavy searches', () => {
     const api = ai as any;
-    if (typeof api.findPathAStar !== 'function') return;
     const observation = makeObservation();
     const target = { x: 4, y: 4 };
     const first = api.findPathAStar(observation, observation.head, target);
