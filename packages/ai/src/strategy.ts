@@ -7,7 +7,7 @@ export interface StrategySignals {
   readonly allRisky: boolean;
   readonly safeMoves: number;
   readonly riskScore: number;
-  readonly occupancyRatio: number;
+  readonly highOccupancy: boolean;
   readonly hamiltonianAvailable: boolean;
   readonly hamiltonianPreservable: boolean;
   readonly foodSafe: boolean;
@@ -19,8 +19,8 @@ export interface StrategySignals {
 function desiredMode(s: StrategySignals): StrategyMode {
   if (s.allRisky) return 'high-risk';
   if (s.emergency || s.safeMoves <= 1) return 'escape';
-  if (s.occupancyRatio >= 0.72 && s.hamiltonianAvailable && s.hamiltonianPreservable) return 'hamiltonian';
-  if (s.occupancyRatio >= 0.72) return 'endgame';
+  if (s.highOccupancy && s.hamiltonianAvailable && s.hamiltonianPreservable) return 'hamiltonian';
+  if (s.highOccupancy) return 'endgame';
   if (!s.foodSafe && s.tailPreferred) return 'tail-follow';
   if (!s.foodSafe) return 'survival';
   if (s.foodSafe && s.riskScore < 55) return 'hunt';
