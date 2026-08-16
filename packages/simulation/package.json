@@ -9,7 +9,8 @@
     "@snake/shared": "workspace:*",
     "@snake/engine": "workspace:*",
     "@snake/ai": "workspace:*",
-    "@snake/levels": "workspace:*"
+    "@snake/levels": "workspace:*",
+    "@snake/failure": "workspace:*"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

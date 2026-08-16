@@ -30,6 +30,12 @@ importers:
         specifier: workspace:*
         version: link:../shared
 
+  packages/failure:
+    dependencies:
+      zod:
+        specifier: ^4.0.0
+        version: 4.4.3
+
   packages/levels:
     dependencies:
       '@snake/shared':
@@ -49,6 +55,9 @@ importers:
       '@snake/engine':
         specifier: workspace:*
         version: link:../engine
+      '@snake/failure':
+        specifier: workspace:*
+        version: link:../failure
       '@snake/levels':
         specifier: workspace:*
         version: link:../levels

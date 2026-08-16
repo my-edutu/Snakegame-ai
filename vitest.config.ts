@@ -8,6 +8,7 @@ export default defineConfig({
       '@snake/engine': fileURLToPath(new URL('./packages/engine/src/index.ts', import.meta.url)),
       '@snake/ai': fileURLToPath(new URL('./packages/ai/src/index.ts', import.meta.url)),
       '@snake/levels': fileURLToPath(new URL('./packages/levels/src/index.ts', import.meta.url)),
+      '@snake/failure': fileURLToPath(new URL('./packages/failure/src/index.ts', import.meta.url)),
       '@snake/simulation': fileURLToPath(new URL('./packages/simulation/src/index.ts', import.meta.url)),
     },
   },
