@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createBaselineConfig } from '@snake/engine';
 import { runBatch, runBatchRows } from '../src/batch.js';
+import { verifyReplay } from '../src/replay.js';
 import { generateSeedCorpus } from '../src/seed-corpus.js';
 import { stableReportJson } from '../src/report.js';
 
@@ -22,10 +23,16 @@ describe('runBatch', () => {
     expect(first.runs?.map((row) => row.seed)).toEqual(request.seeds);
   });
 
-  it('does not retain full run rows unless explicitly requested', () => {
+  it('does not retain full rows but keeps bounded exact replay evidence for top failures', () => {
     const report = runBatch(request);
     expect(report.runs).toBeUndefined();
     expect(report.topFailures.length).toBeLessThanOrEqual(3);
+    expect(report.topReplays).toHaveLength(report.topFailures.length);
+    for (const artifact of report.topReplays) {
+      expect(artifact.execution).toEqual(request.execution);
+      expect(verifyReplay(artifact)).toEqual(artifact.expected);
+      expect(artifact.command).toBe(`pnpm replay --artifact ${artifact.fileName}`);
+    }
   });
 
   it('returns one row per seed', () => {
