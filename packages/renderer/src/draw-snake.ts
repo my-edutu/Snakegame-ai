@@ -40,10 +40,12 @@ export class SnakeDrawableManager {
     quality: QualityPreset,
   ): void {
     this.skinId = skin.id;
+    let grew = false;
     while (this.segments.length < body.length) {
       const segment = new Graphics({ label: `snake-segment-${this.segments.length}` });
       this.segments.push(segment);
       this.layer.addChild(segment);
+      grew = true;
     }
     this.visibleCount = body.length;
     for (let index = 0; index < this.segments.length; index += 1) {
@@ -58,7 +60,7 @@ export class SnakeDrawableManager {
     }
 
     const nextStyleKey = `${skin.id}:${viewport.cellSize.toFixed(4)}`;
-    if (this.styleKey !== nextStyleKey) {
+    if (grew || this.styleKey !== nextStyleKey) {
       this.styleKey = nextStyleKey;
       this.rebuildGeometry(direction, viewport, skin);
     } else if (this.segments[0]) {
