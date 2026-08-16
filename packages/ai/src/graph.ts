@@ -24,25 +24,38 @@ export function isInsideObservation(observation: AiObservation, cell: Vec2): boo
   return cell.x >= 0 && cell.x < observation.board.width && cell.y >= 0 && cell.y < observation.board.height;
 }
 
-function isExplicitTarget(cell: Vec2, options?: GraphOptions): boolean {
-  return options?.traversableTarget !== undefined && equalVec(cell, options.traversableTarget);
+export function buildBlockedCellSet(observation: AiObservation, options?: GraphOptions): ReadonlySet<string> {
+  const blocked = new Set<string>();
+  for (const cell of observation.body) blocked.add(coordinateKey(cell));
+  for (const item of observation.obstacles) blocked.add(coordinateKey(item.position));
+  for (const item of observation.hazards) blocked.add(coordinateKey(item.position));
+  if (options?.traversableTarget) blocked.delete(coordinateKey(options.traversableTarget));
+  return blocked;
+}
+
+export function isTraversableWithBlocked(observation: AiObservation, cell: Vec2, blocked: ReadonlySet<string>): boolean {
+  return isInsideObservation(observation, cell) && !blocked.has(coordinateKey(cell));
 }
 
 export function isTraversable(observation: AiObservation, cell: Vec2, options?: GraphOptions): boolean {
   if (!isInsideObservation(observation, cell)) return false;
-  if (isExplicitTarget(cell, options)) return true;
-
-  if (observation.body.some((item) => equalVec(item, cell))) return false;
-  if (observation.obstacles.some((item) => equalVec(item.position, cell))) return false;
-  if (observation.hazards.some((item) => equalVec(item.position, cell))) return false;
-  return true;
+  if (options?.traversableTarget && equalVec(cell, options.traversableTarget)) return true;
+  return !buildBlockedCellSet(observation, options).has(coordinateKey(cell));
 }
 
-export function enumerateNeighbors(observation: AiObservation, cell: Vec2, options?: GraphOptions): readonly Neighbor[] {
+export function enumerateNeighborsWithBlocked(
+  observation: AiObservation,
+  cell: Vec2,
+  blocked: ReadonlySet<string>,
+): readonly Neighbor[] {
   const result: Neighbor[] = [];
   for (const direction of CANONICAL_DIRECTIONS) {
     const position = addVec(cell, DIRECTION_DELTAS[direction]);
-    if (isTraversable(observation, position, options)) result.push({ direction, position });
+    if (isTraversableWithBlocked(observation, position, blocked)) result.push({ direction, position });
   }
   return result;
+}
+
+export function enumerateNeighbors(observation: AiObservation, cell: Vec2, options?: GraphOptions): readonly Neighbor[] {
+  return enumerateNeighborsWithBlocked(observation, cell, buildBlockedCellSet(observation, options));
 }
