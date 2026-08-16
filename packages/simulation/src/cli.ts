@@ -47,7 +47,7 @@ function execution(seed: number, maxTicks: number, values: Readonly<Record<strin
 export async function runCli(argv: readonly string[]): Promise<string> {
   const parsed = parseCliArgs(argv);
   if (parsed.command === 'replay') {
-    const artifactPath = parsed.values.artifact;
+    const artifactPath = parsed.values['artifact'];
     if (typeof artifactPath === 'string') {
       const artifact = JSON.parse(readFileSync(artifactPath, 'utf8')) as ReplayArtifact;
       return `${JSON.stringify(verifyReplay(artifact))}\n`;
@@ -66,7 +66,7 @@ export async function runCli(argv: readonly string[]): Promise<string> {
   const request = { seeds, execution: execution(corpusSeed, maxTicks, parsed.values), retainRuns: parsed.values['retain-runs'] === true, topFailures: integer(parsed.values, 'top-failures', 10, 0, 1000) };
   const report = workers === 1 ? runBatch(request) : await runBatchParallel(request, workers);
   const json = stableReportJson(report);
-  const outputPath = parsed.values.json;
+  const outputPath = parsed.values['json'];
   if (typeof outputPath === 'string') writeFileSync(outputPath, json, 'utf8');
   return parsed.values['json-only'] === true ? json : humanReport(report);
 }
