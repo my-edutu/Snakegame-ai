@@ -1,7 +1,7 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { extname, join, relative } from 'node:path';
 
-const roots = ['packages/shared/src', 'packages/engine/src'];
+const roots = ['packages/shared/src', 'packages/engine/src', 'packages/ai/src'];
 const forbidden = [
   ['Math.random', /\bMath\.random\s*\(/],
   ['Date.now', /\bDate\.now\s*\(/],
