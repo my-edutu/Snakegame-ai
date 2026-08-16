@@ -26,6 +26,17 @@ export function createHamiltonianOrder(width: number, height: number): Hamiltoni
   return { size: cells.length, indexByCell: map };
 }
 
+export function isHamiltonianBodyOrdered(order: HamiltonianOrder, state: SimulatedState): boolean {
+  if (state.body.length <= 1) return true;
+  for (let i = 1; i < state.body.length; i += 1) {
+    const previous = order.indexByCell.get(key(state.body[i - 1]!));
+    const current = order.indexByCell.get(key(state.body[i]!));
+    if (previous === undefined || current === undefined) return false;
+    if ((previous - current + order.size) % order.size !== 1) return false;
+  }
+  return true;
+}
+
 export function hamiltonianMovePenalty(order: HamiltonianOrder, state: SimulatedState, direction: Direction): number {
   const head = state.body[0];
   if (!head) return 1;
