@@ -9,14 +9,40 @@ class FakeTicker {
   remove(callback: (elapsedMs: number) => void): void { this.callbacks.delete(callback); }
 }
 
+class ThrowingTicker extends FakeTicker {
+  override add(): void { throw new Error('ticker-add-failed'); }
+}
+
 class FakeHost implements RendererHost {
   readonly stage = new Container();
-  readonly ticker = new FakeTicker();
+  readonly ticker: FakeTicker;
   resizeCalls = 0;
   destroyCalls = 0;
+
+  constructor(ticker: FakeTicker = new FakeTicker()) {
+    this.ticker = ticker;
+  }
+
   resize(): void { this.resizeCalls += 1; }
-  destroy(): void { this.destroyCalls += 1; this.stage.destroy({ children: true }); }
+  destroy(): void {
+    this.destroyCalls += 1;
+    if (!this.stage.destroyed) this.stage.destroy({ children: true });
+  }
 }
+
+const deferred = <T>(): {
+  readonly promise: Promise<T>;
+  readonly resolve: (value: T) => void;
+  readonly reject: (reason?: unknown) => void;
+} => {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((innerResolve, innerReject) => {
+    resolve = innerResolve;
+    reject = innerReject;
+  });
+  return { promise, resolve, reject };
+};
 
 const frame = () => createRenderFrame({
   tick: 1,
@@ -85,5 +111,56 @@ describe('SnakeRenderer lifecycle', () => {
     expect(renderer.getState()).toMatchObject({ skinId: 'emerald', themeId: 'neon-grid', qualityId: 'balanced' });
     expect(renderer.getWarnings().length).toBe(3);
     renderer.destroy();
+  });
+
+  it('rejects concurrent initialization before creating a second host or scene', async () => {
+    const pendingHost = deferred<RendererHost>();
+    const host = new FakeHost();
+    let factoryCalls = 0;
+    const renderer = new SnakeRenderer({
+      hostFactory: () => {
+        factoryCalls += 1;
+        return pendingHost.promise;
+      },
+    });
+
+    const first = renderer.init({ width: 1920, height: 1080 });
+    const second = renderer.init({ width: 1920, height: 1080 });
+    pendingHost.resolve(host);
+    const outcomes = await Promise.allSettled([first, second]);
+    renderer.destroy();
+
+    expect(factoryCalls).toBe(1);
+    expect(outcomes[0]?.status).toBe('fulfilled');
+    expect(outcomes[1]?.status).toBe('rejected');
+    expect(host.destroyCalls).toBe(1);
+  });
+
+  it('destroys a host that resolves after the renderer was destroyed during initialization', async () => {
+    const pendingHost = deferred<RendererHost>();
+    const host = new FakeHost();
+    const renderer = new SnakeRenderer({ hostFactory: () => pendingHost.promise });
+
+    const initialization = renderer.init({ width: 1920, height: 1080 });
+    renderer.destroy();
+    pendingHost.resolve(host);
+    const outcome = await Promise.allSettled([initialization]);
+
+    expect(outcome[0]?.status).toBe('rejected');
+    expect(host.destroyCalls).toBe(1);
+    expect(host.ticker.callbacks.size).toBe(0);
+    expect(host.stage.children).toHaveLength(0);
+    expect(renderer.getState().initialized).toBe(false);
+  });
+
+  it('rolls back the host and scene when initialization fails after host creation', async () => {
+    const host = new FakeHost(new ThrowingTicker());
+    const renderer = new SnakeRenderer({ hostFactory: async () => host });
+
+    await expect(renderer.init({ width: 1920, height: 1080 })).rejects.toThrow('ticker-add-failed');
+    expect(renderer.getState().initialized).toBe(false);
+    expect(host.destroyCalls).toBe(1);
+    renderer.destroy();
+    expect(host.destroyCalls).toBe(1);
   });
 });
