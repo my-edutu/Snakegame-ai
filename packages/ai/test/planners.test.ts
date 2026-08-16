@@ -23,6 +23,18 @@ describe('food and tail planners', () => {
     expect(result.search.telemetry.pathLength).toBe(2);
   });
 
+  it('uses locale-independent code-unit ordering as the final food tie-break', () => {
+    const api = ai as any;
+    if (typeof api.planPathToFood !== 'function') return;
+    const observation = makeObservation({
+      food: [
+        { id: 'a-food', type: 'normal', value: 1, position: { x: 4, y: 2 } },
+        { id: 'Z-food', type: 'normal', value: 1, position: { x: 4, y: 2 } },
+      ],
+    });
+    expect(api.planPathToFood(observation).target.id).toBe('Z-food');
+  });
+
   it('returns no target when food is absent', () => {
     const api = ai as any;
     if (typeof api.planPathToFood !== 'function') return;
