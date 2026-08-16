@@ -33,24 +33,30 @@ function neighbors(state: SimulatedState, cell: Vec2, blockedSet: ReadonlySet<st
   return out;
 }
 
-export function analyzeSpace(state: SimulatedState): SpaceAnalysis {
-  const head = state.body[0];
-  if (!head) return { reachableArea: 0, reachableAreaRatio: 0, tailReachable: false, escapeRouteCount: 0, localDegree: 0, corridorDepth: 0, deadEnd: true, articulationPressure: 1 };
-  const b = blocked(state);
-  const queue: Vec2[] = [{ ...head }];
-  const seen = new Set<string>([key(head)]);
+function flood(state: SimulatedState, start: Vec2, blockedSet: ReadonlySet<string>): Set<string> {
+  const queue: Vec2[] = [{ ...start }];
+  const seen = new Set<string>([key(start)]);
   let cursor = 0;
   while (cursor < queue.length) {
     const current = queue[cursor++]!;
-    for (const n of neighbors(state, current, b)) {
+    for (const n of neighbors(state, current, blockedSet)) {
       const k = key(n);
       if (seen.has(k)) continue;
       seen.add(k);
       queue.push(n);
     }
   }
+  return seen;
+}
+
+export function analyzeSpace(state: SimulatedState): SpaceAnalysis {
+  const head = state.body[0];
+  if (!head) return { reachableArea: 0, reachableAreaRatio: 0, tailReachable: false, escapeRouteCount: 0, localDegree: 0, corridorDepth: 0, deadEnd: true, articulationPressure: 1 };
+  const b = blocked(state);
+  const seen = flood(state, head, b);
   const totalPlayable = Math.max(1, state.board.width * state.board.height - state.obstacles.length - state.hazards.length);
   const local = neighbors(state, head, b);
+
   let corridorDepth = 0;
   if (local.length <= 2) {
     let frontier = local.map((v) => ({ cell: v, depth: 1, prev: key(head) }));
@@ -69,8 +75,15 @@ export function analyzeSpace(state: SimulatedState): SpaceAnalysis {
       frontier = nextFrontier;
     }
   }
+
   const tail = state.body.at(-1);
-  const tailReachable = tail ? seen.has(key(tail)) || tail === head : false;
+  let tailReachable = false;
+  if (tail) {
+    const tailBlocked = new Set(b);
+    tailBlocked.delete(key(tail));
+    tailReachable = flood(state, head, tailBlocked).has(key(tail));
+  }
+
   const reachableArea = seen.size;
   const reachableAreaRatio = Math.min(1, reachableArea / totalPlayable);
   const deadEnd = local.length === 0 || (local.length === 1 && reachableArea <= state.body.length + 1);
