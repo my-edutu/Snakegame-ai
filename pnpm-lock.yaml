@@ -49,6 +49,9 @@ importers:
       '@snake/engine':
         specifier: workspace:*
         version: link:../engine
+      '@snake/levels':
+        specifier: workspace:*
+        version: link:../levels
       '@snake/shared':
         specifier: workspace:*
         version: link:../shared
