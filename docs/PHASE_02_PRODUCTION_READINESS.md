@@ -1,6 +1,20 @@
 # Phase 2 Production Readiness — Deterministic AI Pathfinding
 
-Phase 2 is production-ready only when every gate below is satisfied on the exact merge candidate and again on the merged `main` commit.
+## Production status
+
+**Status: VERIFIED PRODUCTION READY**
+
+The Superpowers hardening review was squash-merged through PR #3 as production commit:
+
+- **Code release SHA:** `ad6ab8173bc7317f1fb060a5eaddb79b2f705341`
+- **GitHub Actions verification run:** `31941890742`
+- **Verification result:** `success`
+- **Test result:** **62/62 tests passed across 18 test files**
+- **Verification environment:** Node.js 22, pnpm 10.15.0, frozen lockfile install
+
+The merged `main` commit passed frozen dependency installation, strict TypeScript typecheck, the full test suite, all package builds, forbidden nondeterministic/browser API scanning, repeated byte-identical engine headless output, and repeated byte-identical AI pathfinding output.
+
+Phase 2 is therefore approved as the production foundation for Phase 3 survival reasoning.
 
 ## Scope delivered
 
@@ -56,7 +70,7 @@ Automated regressions prove that:
 
 ## Correctness gates
 
-The hardened merge candidate contains **62 passing tests across 18 test files**. Coverage includes:
+The hardened production release contains **62 passing tests across 18 test files**. Coverage includes:
 
 - observation projection and deep reference isolation;
 - body, obstacle, hazard, and board-edge blocking;
@@ -81,7 +95,7 @@ Wall-clock duration is intentionally not a correctness gate because hosted-runne
 
 ## Build and dependency gates
 
-The release candidate must pass:
+The release passes:
 
 ```bash
 pnpm install --frozen-lockfile
@@ -109,18 +123,32 @@ GitHub Actions verifies:
 
 ## Architectural gates
 
-- `@snake/engine` must not depend on `@snake/ai`.
-- `@snake/ai` may consume engine types/read-only observations but must not own simulation state.
-- Rendering, React, PixiJS, DOM, OBS, and UI types must not enter the AI package.
+- `@snake/engine` does not depend on `@snake/ai`.
+- `@snake/ai` consumes engine state through detached observations but does not own simulation state.
+- Rendering, React, PixiJS, DOM, OBS, and UI types do not enter the AI package.
 - Phase 2 is a static-board routing layer, not a future-state survival simulator.
 - Phase 3 survival reasoning — flood fill, future-state simulation, trap scoring, food-safety rejection, risk scoring, Hamiltonian routing, and hybrid strategy switching — remains intentionally absent.
 
-## Release procedure
+## Superpowers hardening review
 
-1. Exact PR head passes the full frozen CI gate.
-2. Final diff is reviewed for scope, deterministic behavior, mutation leaks, and performance regressions.
-3. Branch is confirmed not behind `main`.
-4. PR is squash-merged using an expected-head SHA guard.
-5. The resulting `main` commit passes the same permanent CI workflow.
+The review deliberately challenged endpoint semantics, deterministic ordering, mutation isolation, telemetry meaning, dense-board behavior, CI reproducibility, and phase-boundary discipline.
 
-Only after step 5 may the hardened Phase 2 boundary be treated as production-ready and Phase 3 begin.
+The review found and corrected production risks rather than merely confirming the existing implementation:
+
+- separated invalid starts from invalid targets;
+- distinguished blocked targets from valid-but-unreachable targets;
+- centralized BFS/A* endpoint classification to prevent semantic drift;
+- renamed candidate distance telemetry to prevent consumers from mistaking static routing for future survivability;
+- expanded deep isolation and result-ownership regressions;
+- expanded 100×100 testing to dense pathological geometry;
+- preserved deterministic replay and byte-identical headless output.
+
+## Release procedure completed
+
+1. Exact hardening PR head passed the full frozen CI gate.
+2. Final diff was reviewed for scope, deterministic behavior, mutation leaks, and performance regressions.
+3. Branch was confirmed 0 commits behind `main` before merge.
+4. PR #3 was squash-merged using expected-head SHA protection.
+5. Production commit `ad6ab8173bc7317f1fb060a5eaddb79b2f705341` passed permanent `main` CI in workflow run `31941890742`.
+
+Phase 3 may begin only from this verified Phase 2 boundary or a later `main` commit that has also passed the permanent production workflow.
