@@ -21,6 +21,18 @@ describe('hybrid strategy state machine', () => {
     expect(selectStrategy({ mode: 'hunt', ticksInMode: 0 }, { ...base, allRisky: true }, 6).mode).toBe('high-risk');
   });
 
+  it('treats a proven high-occupancy Hamiltonian invariant as stronger than generic one-move pressure', () => {
+    const result = selectStrategy({ mode: 'explore', ticksInMode: 0 }, {
+      ...base,
+      safeMoves: 1,
+      riskScore: 80,
+      highOccupancy: true,
+      hamiltonianAvailable: true,
+      hamiltonianPreservable: true,
+    }, 6);
+    expect(result.mode).toBe('hamiltonian');
+  });
+
   it('selects tail-follow, Hamiltonian, endgame, and hunt from evidence', () => {
     expect(selectStrategy({ mode: 'explore', ticksInMode: 10 }, { ...base, foodSafe: false, tailPreferred: true }, 1).mode).toBe('tail-follow');
     expect(selectStrategy({ mode: 'explore', ticksInMode: 10 }, { ...base, highOccupancy: true, hamiltonianAvailable: true, hamiltonianPreservable: true }, 1).mode).toBe('hamiltonian');
