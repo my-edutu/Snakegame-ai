@@ -2,7 +2,7 @@ import { Worker } from 'node:worker_threads';
 import { aggregateRunResults } from './aggregate.js';
 import { validateExplicitSeeds } from './seed-corpus.js';
 import type { BatchRequest } from './batch.js';
-import type { SimulationBatchReport, SimulationRunResult } from './types.js';
+import type { BatchOptions, SimulationBatchReport, SimulationRunResult } from './types.js';
 
 interface WorkerSuccess { readonly ok: true; readonly startIndex: number; readonly rows: readonly SimulationRunResult[] }
 interface WorkerFailure { readonly ok: false; readonly startIndex: number; readonly count: number; readonly message: string }
@@ -43,10 +43,17 @@ function runWorker(part: { startIndex: number; seeds: readonly number[] }, reque
   });
 }
 
+function aggregationOptions(request: BatchRequest): BatchOptions {
+  return {
+    ...(request.retainRuns !== undefined ? { retainRuns: request.retainRuns } : {}),
+    ...(request.topFailures !== undefined ? { topFailures: request.topFailures } : {}),
+  };
+}
+
 export async function runBatchParallel(request: BatchRequest, workerCount: number): Promise<SimulationBatchReport> {
   const parts = partitionSeedRanges(request.seeds, workerCount);
   const chunks = await Promise.all(parts.map((part) => runWorker(part, request)));
   chunks.sort((a, b) => a.startIndex - b.startIndex);
   const rows = chunks.flatMap((chunk) => chunk.rows);
-  return aggregateRunResults(rows, { retainRuns: request.retainRuns, topFailures: request.topFailures });
+  return aggregateRunResults(rows, aggregationOptions(request));
 }
