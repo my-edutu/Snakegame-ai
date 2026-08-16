@@ -10,8 +10,8 @@ declare module 'node:worker_threads' {
   }
 }
 declare module 'node:fs' {
-  export function writeFileSync(path: string, data: string, encoding?: string): void;
-  export function readFileSync(path: string, encoding: string): string;
+  export function writeFileSync(path: string | URL, data: string, encoding?: string): void;
+  export function readFileSync(path: string | URL, encoding: string): string;
 }
 declare const process: {
   argv: string[];
