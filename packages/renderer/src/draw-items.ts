@@ -62,7 +62,7 @@ export class ItemDrawableManager {
       if (isNew || geometryChanged || graphic.label !== `food-${item.type}`) {
         graphic.label = `food-${item.type}`;
         const radius = viewport.cellSize * (item.type === 'normal' ? 0.27 : 0.31);
-        const color = ITEM_COLORS[item.type] ?? ITEM_COLORS.mystery!;
+        const color = ITEM_COLORS[item.type] ?? ITEM_COLORS['mystery']!;
         graphic.clear()
           .circle(0, 0, radius * 1.45)
           .fill({ color, alpha: 0.12 })
