@@ -11,15 +11,15 @@ describe('Phase 5 all-level production corpus', () => {
         const b = runLevelSimulation(level, seed, { maxTicks: 120 });
         expect(a).toEqual(b);
         expect(a.levelId).toBe(level.id);
-        expect(a.result.ticksSurvived).toBeLessThanOrEqual(120);
-        expect(Number.isFinite(a.result.maxOccupancyPercent)).toBe(true);
+        expect(a.run.ticksSurvived).toBeLessThanOrEqual(120);
+        expect(Number.isFinite(a.run.maxOccupancyPercent)).toBe(true);
       }
     }
   });
 
   it('produces a deterministic batch row for every level/seed pair', () => {
     const report = runLevelBatch(LEVELS, [3, 11], { maxTicks: 80 });
-    expect(report).toHaveLength(LEVELS.length * 2);
-    expect(report.map((row) => row.levelId)).toEqual(LEVELS.flatMap((level) => [level.id, level.id]));
+    expect(report.runCount).toBe(LEVELS.length * 2);
+    expect(report.rows.map((row) => row.levelId)).toEqual(LEVELS.flatMap((level) => [level.id, level.id]));
   });
 });
