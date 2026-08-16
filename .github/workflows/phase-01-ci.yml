@@ -74,3 +74,23 @@ jobs:
           pnpm headless:survival | tee /tmp/headless-survival-a.txt
           pnpm headless:survival | tee /tmp/headless-survival-b.txt
           diff -u /tmp/headless-survival-a.txt /tmp/headless-survival-b.txt
+
+      - name: Verify repeatable simulation report
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm simulate:smoke | tee /tmp/simulation-a.json
+          pnpm simulate:smoke | tee /tmp/simulation-b.json
+          diff -u /tmp/simulation-a.json /tmp/simulation-b.json
+
+      - name: Verify worker-thread equivalence
+        run: pnpm simulate:parallel-smoke > /tmp/simulation-parallel.json
+
+      - name: Verify worker failure propagation
+        run: pnpm simulate:worker-failure-smoke
+
+      - name: Verify 1000-run bounded batch
+        run: pnpm simulate:benchmark1000 > /tmp/simulation-1000.json
+
+      - name: Verify 10000-run command path
+        run: pnpm simulate:smoke10000 > /tmp/simulation-10000.json

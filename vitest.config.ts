@@ -7,6 +7,7 @@ export default defineConfig({
       '@snake/shared': fileURLToPath(new URL('./packages/shared/src/index.ts', import.meta.url)),
       '@snake/engine': fileURLToPath(new URL('./packages/engine/src/index.ts', import.meta.url)),
       '@snake/ai': fileURLToPath(new URL('./packages/ai/src/index.ts', import.meta.url)),
+      '@snake/simulation': fileURLToPath(new URL('./packages/simulation/src/index.ts', import.meta.url)),
     },
   },
   test: {

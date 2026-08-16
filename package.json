@@ -13,8 +13,15 @@
     "headless": "pnpm --filter @snake/engine headless",
     "headless:ai": "pnpm --filter @snake/ai headless",
     "headless:survival": "pnpm --filter @snake/ai headless:survival",
+    "simulate": "pnpm --filter @snake/simulation simulate --",
+    "replay": "pnpm --filter @snake/simulation replay --",
+    "simulate:smoke": "pnpm --filter @snake/simulation smoke",
+    "simulate:parallel-smoke": "node packages/simulation/dist/parallel-smoke.js",
+    "simulate:worker-failure-smoke": "node packages/simulation/dist/worker-failure-smoke.js",
+    "simulate:benchmark1000": "node packages/simulation/dist/benchmark.js 1000 100",
+    "simulate:smoke10000": "node packages/simulation/dist/benchmark.js 10000 2",
     "check:forbidden": "node scripts/check-forbidden-apis.mjs",
-    "check": "pnpm typecheck && pnpm test && pnpm build && pnpm check:forbidden && pnpm headless && pnpm headless:ai && pnpm headless:survival"
+    "check": "pnpm typecheck && pnpm test && pnpm build && pnpm check:forbidden && pnpm headless && pnpm headless:ai && pnpm headless:survival && pnpm simulate:smoke && pnpm simulate:parallel-smoke && pnpm simulate:worker-failure-smoke"
   },
   "devDependencies": {
     "typescript": "5.8.3",
