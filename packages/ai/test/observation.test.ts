@@ -4,29 +4,15 @@ import { createEngine } from '../../engine/src/runtime.js';
 import * as ai from '../src/index.js';
 
 describe('AI observation', () => {
-  it('exposes createObservation before validating projection behavior', () => {
-    const api = ai as Record<string, unknown>;
-    expect(typeof api.createObservation).toBe('function');
+  it('exposes createObservation', () => {
+    expect(typeof (ai as Record<string, unknown>).createObservation).toBe('function');
   });
 
   it('projects search-relevant state without leaking mutable engine references', () => {
-    const api = ai as Record<string, unknown>;
-    expect(typeof api.createObservation).toBe('function');
-    if (typeof api.createObservation !== 'function') return;
-
     const engine = createEngine(createBaselineConfig(42));
     const state = engine.getState();
-    const createObservation = api.createObservation as (value: typeof state) => {
-      board: { width: number; height: number };
-      head: { x: number; y: number };
-      tail: { x: number; y: number };
-      body: Array<{ x: number; y: number }>;
-      food: Array<{ id: string; position: { x: number; y: number } }>;
-      tick: number;
-      runId: string;
-    };
+    const observation = (ai as any).createObservation(state);
 
-    const observation = createObservation(state);
     expect(observation.board).toEqual({ width: 12, height: 8 });
     expect(observation.head).toEqual(state.snake.body[0]);
     expect(observation.tail).toEqual(state.snake.body.at(-1));
@@ -35,11 +21,39 @@ describe('AI observation', () => {
     expect(observation.tick).toBe(0);
     expect(observation.runId).toBe(state.runId);
 
-    observation.body[0]!.x = 999;
+    observation.body[0].x = 999;
     observation.head.x = 998;
     if (observation.food[0]) observation.food[0].position.x = 997;
 
     expect(engine.getState().snake.body[0]).toEqual({ x: 3, y: 3 });
-    expect(createObservation(state)).toEqual(createObservation(state));
+  });
+
+  it('deeply detaches nested arrays and positions in both mutation directions', () => {
+    const engine = createEngine(createBaselineConfig(73));
+    const source = engine.getState() as any;
+    source.obstacles = [{ id: 'o1', position: { x: 8, y: 2 } }];
+    source.hazards = [{ id: 'h1', position: { x: 9, y: 2 } }];
+    source.food = [{ id: 'f1', type: 'normal', position: { x: 10, y: 2 }, value: 1 }];
+
+    const observation = (ai as any).createObservation(source);
+    const frozenSnapshot = JSON.parse(JSON.stringify(observation));
+
+    source.snake.body[0].x = 77;
+    source.food[0].position.x = 76;
+    source.obstacles[0].position.x = 75;
+    source.hazards[0].position.x = 74;
+    expect(observation).toEqual(frozenSnapshot);
+
+    observation.body[0].x = 66;
+    observation.head.x = 65;
+    observation.tail.x = 64;
+    observation.food[0].position.x = 63;
+    observation.obstacles[0].position.x = 62;
+    observation.hazards[0].position.x = 61;
+
+    expect(source.snake.body[0].x).toBe(77);
+    expect(source.food[0].position.x).toBe(76);
+    expect(source.obstacles[0].position.x).toBe(75);
+    expect(source.hazards[0].position.x).toBe(74);
   });
 });
