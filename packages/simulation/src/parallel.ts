@@ -1,7 +1,7 @@
 import { Worker } from 'node:worker_threads';
 import { aggregateRunResults } from './aggregate.js';
+import { attachReplayEvidence, type BatchRequest } from './batch.js';
 import { validateExplicitSeeds } from './seed-corpus.js';
-import type { BatchRequest } from './batch.js';
 import type { BatchOptions, SimulationBatchReport, SimulationRunResult } from './types.js';
 
 interface WorkerSuccess { readonly ok: true; readonly startIndex: number; readonly rows: readonly SimulationRunResult[] }
@@ -55,5 +55,5 @@ export async function runBatchParallel(request: BatchRequest, workerCount: numbe
   const chunks = await Promise.all(parts.map((part) => runWorker(part, request)));
   chunks.sort((a, b) => a.startIndex - b.startIndex);
   const rows = chunks.flatMap((chunk) => chunk.rows);
-  return aggregateRunResults(rows, aggregationOptions(request));
+  return attachReplayEvidence(aggregateRunResults(rows, aggregationOptions(request)), request.execution);
 }
