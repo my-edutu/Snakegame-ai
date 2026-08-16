@@ -17,7 +17,7 @@ jobs:
   verify:
     name: Typecheck, test, build, determinism
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
@@ -50,6 +50,31 @@ jobs:
 
       - name: Scan deterministic core for forbidden APIs
         run: pnpm check:forbidden
+
+      - name: Verify renderer architecture boundaries
+        run: pnpm check:renderer-boundaries
+
+      - name: Verify renderer target resolutions
+        run: pnpm renderer:resolution
+
+      - name: Verify renderer 50000-frame soak
+        run: pnpm renderer:soak
+
+      - name: Build premium renderer preview
+        run: pnpm preview:build
+
+      - name: Verify compiled preview in Chrome
+        run: pnpm renderer:browser
+
+      - name: Upload premium renderer preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase-08-render-preview
+          path: |
+            apps/render-preview/dist
+            apps/render-preview/browser-smoke
+          if-no-files-found: error
+          retention-days: 3
 
       - name: Verify repeatable engine headless output
         shell: bash

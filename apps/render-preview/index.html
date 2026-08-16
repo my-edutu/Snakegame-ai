@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#040611" />
+    <title>AI Snake — Renderer Preview</title>
+  </head>
+  <body>
+    <main id="app">
+      <header class="preview-bar">
+        <div class="brand-lockup">
+          <span class="brand-mark"></span>
+          <div>
+            <strong>AI SNAKE</strong>
+            <small>PREMIUM RENDER PREVIEW</small>
+          </div>
+        </div>
+        <div class="controls" aria-label="Presentation controls">
+          <label>Skin <select id="skin"></select></label>
+          <label>Theme <select id="theme"></select></label>
+          <label>Quality <select id="quality"></select></label>
+          <label>Viewport <select id="viewport"></select></label>
+        </div>
+        <div class="live-badge"><span></span> DEMO FEED</div>
+      </header>
+      <section class="stage-shell">
+        <div id="stage" class="stage" aria-label="AI Snake renderer canvas"></div>
+        <div class="stage-caption">
+          <div><span>LEVEL</span><strong>08 · THE MAZE</strong></div>
+          <div><span>STRATEGY</span><strong id="strategy-copy">SPACE PRESERVATION</strong></div>
+          <div><span>RISK</span><strong id="risk-copy">42%</strong></div>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -10,7 +10,8 @@ export default defineConfig({
       '@snake/levels': fileURLToPath(new URL('./packages/levels/src/index.ts', import.meta.url)),
       '@snake/failure': fileURLToPath(new URL('./packages/failure/src/index.ts', import.meta.url)),
       '@snake/simulation': fileURLToPath(new URL('./packages/simulation/src/index.ts', import.meta.url)),
+      '@snake/renderer': fileURLToPath(new URL('./packages/renderer/src/index.ts', import.meta.url)),
     },
   },
-  test: { include: ['packages/**/test/**/*.test.ts'], environment: 'node', coverage: { enabled: false } },
+  test: { include: ['packages/**/test/**/*.test.ts', 'apps/**/test/**/*.test.ts'], environment: 'node', coverage: { enabled: false } },
 });
