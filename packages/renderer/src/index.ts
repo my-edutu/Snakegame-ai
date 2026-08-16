@@ -14,4 +14,6 @@ export * from './draw-environment.js';
 export * from './draw-snake.js';
 export * from './draw-items.js';
 export * from './effects.js';
+export * from './hud-types.js';
+export * from './hud-model.js';
 export * from './renderer.js';
