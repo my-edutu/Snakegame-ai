@@ -37,7 +37,9 @@ export function assessRisk(input: RiskContributors): RiskAssessment {
     contributors.trapProbability * 0.18 +
     contributors.lookaheadFailure * 0.10 +
     contributors.topologyPressure * 0.08;
-  const score = Math.max(0, Math.min(100, Math.round(weighted * 100)));
+  const weightedScore = Math.round(weighted * 100);
+  const structuralFloor = contributors.safeMoves === 0 ? 100 : contributors.safeMoves === 1 ? 80 : 0;
+  const score = Math.max(0, Math.min(100, Math.max(weightedScore, structuralFloor)));
   const level = score >= 75 ? 'critical' : score >= 55 ? 'high' : score >= 30 ? 'moderate' : 'low';
   return { score, level, contributors };
 }
