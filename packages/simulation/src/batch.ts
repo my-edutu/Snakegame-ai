@@ -13,7 +13,14 @@ export function runBatchRows(request: BatchRequest): readonly SimulationRunResul
   return seeds.map((seed) => runSimulation(seed, request.execution));
 }
 
+function aggregationOptions(request: BatchRequest): BatchOptions {
+  return {
+    ...(request.retainRuns !== undefined ? { retainRuns: request.retainRuns } : {}),
+    ...(request.topFailures !== undefined ? { topFailures: request.topFailures } : {}),
+  };
+}
+
 export function runBatch(request: BatchRequest): SimulationBatchReport {
   const rows = runBatchRows(request);
-  return aggregateRunResults(rows, { retainRuns: request.retainRuns, topFailures: request.topFailures });
+  return aggregateRunResults(rows, aggregationOptions(request));
 }
