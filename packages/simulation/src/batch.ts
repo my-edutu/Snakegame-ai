@@ -1,4 +1,5 @@
 import { aggregateRunResults } from './aggregate.js';
+import { createReplayArtifact } from './replay.js';
 import { runSimulation } from './run.js';
 import { validateExplicitSeeds } from './seed-corpus.js';
 import type { BatchOptions, SimulationBatchReport, SimulationExecutionConfig, SimulationRunResult } from './types.js';
@@ -20,7 +21,14 @@ function aggregationOptions(request: BatchRequest): BatchOptions {
   };
 }
 
+export function attachReplayEvidence(report: SimulationBatchReport, execution: SimulationExecutionConfig): SimulationBatchReport {
+  return {
+    ...report,
+    topReplays: report.topFailures.map((result) => createReplayArtifact(result.seed, execution, result)),
+  };
+}
+
 export function runBatch(request: BatchRequest): SimulationBatchReport {
   const rows = runBatchRows(request);
-  return aggregateRunResults(rows, aggregationOptions(request));
+  return attachReplayEvidence(aggregateRunResults(rows, aggregationOptions(request)), request.execution);
 }
