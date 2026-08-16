@@ -13,6 +13,10 @@ import { getSnakeSkin, type SnakeSkin } from './skins.js';
 import { getTheme, type EnvironmentTheme } from './themes.js';
 import type { RenderFrame, ViewportTransform } from './types.js';
 import { computeViewportTransform } from './viewport.js';
+import { createHudDrawableManager, type HudDrawableManager } from './draw-hud.js';
+import { computeHudLayout, type HudLayout } from './hud-layout.js';
+import { createHudSnapshot } from './hud-model.js';
+import type { HudLifecycle, HudRiskBand, HudSnapshot } from './hud-types.js';
 
 export interface RendererTicker {
   add(callback: (elapsedMs: number) => void): void;
@@ -65,6 +69,7 @@ export interface SnakeRendererMetrics extends FrameMetricsSnapshot {
   readonly itemDrawableCount: number;
   readonly effectActiveCount: number;
   readonly eventCount: number;
+  readonly hudDisplayObjectCount: number;
   readonly displayObjectCount: number;
 }
 
@@ -128,6 +133,78 @@ const eventEffectColor = (kind: RenderFrame['events'][number]['kind'], theme: En
   }
 };
 
+const riskBandFor = (risk: number): HudRiskBand => {
+  if (risk >= 85) return 'critical';
+  if (risk >= 60) return 'high';
+  if (risk >= 30) return 'guarded';
+  return 'low';
+};
+
+const legacyLifecycleFor = (frame: RenderFrame): HudLifecycle => {
+  switch (frame.lifecycle) {
+    case 'paused': return 'paused';
+    case 'level-complete': return 'celebrating';
+    case 'countdown': return 'restart-countdown';
+    case 'death':
+    case 'run-summary': return 'summary';
+    case 'boot':
+    case 'intro':
+    case 'new-game':
+    case 'level-start':
+    case 'playing': return 'playing';
+  }
+};
+
+const levelNumberFromId = (id: string): number => {
+  const match = /(?:level[-_ ]?)?(\d+)/i.exec(id);
+  const parsed = match?.[1] ? Number.parseInt(match[1], 10) : 1;
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : 1;
+};
+
+const legacyHudSnapshotFor = (frame: RenderFrame): HudSnapshot => {
+  const levelNumber = levelNumberFromId(frame.level.id);
+  return createHudSnapshot({
+    completeness: 'legacy',
+    level: { number: levelNumber, name: frame.level.name, total: Math.max(20, levelNumber) },
+    run: {
+      number: 1,
+      elapsedTicks: Math.max(0, Math.trunc(frame.tick)),
+      tickDurationMs: frame.tickDurationMs,
+      levelStreak: 0,
+      lifecycle: legacyLifecycleFor(frame),
+      countdownTicksRemaining: frame.lifecycle === 'countdown' ? 1 : 0,
+    },
+    primary: {
+      score: Math.max(0, frame.hud.score),
+      length: Math.max(0, Math.trunc(frame.hud.length)),
+      occupancyPercent: Math.min(100, Math.max(0, frame.hud.occupancyPercent)),
+      foodEaten: 0,
+      safeMoves: 0,
+      projectedMoves: 0,
+    },
+    risk: { score: Math.min(100, Math.max(0, frame.hud.risk)), band: riskBandFor(frame.hud.risk) },
+    strategy: {
+      label: frame.hud.strategy.trim().length > 0 ? frame.hud.strategy : 'autonomous-play',
+      trapRiskPercent: null,
+      preservedEscapeRoutes: null,
+      endgame: false,
+      criticalSafeMoves: null,
+    },
+    records: {
+      bestOccupancyPercent: 0,
+      highestLevel: 0,
+      deaths: 0,
+      totalGames: 0,
+      highScore: 0,
+      maxLength: 0,
+      longestSurvivalTicks: 0,
+    },
+    recordTarget: null,
+    runSummary: null,
+    emittedEventIds: [],
+  });
+};
+
 export class SnakeRenderer {
   private readonly hostFactory: RendererHostFactory;
   private readonly safeInset: number;
@@ -136,10 +213,14 @@ export class SnakeRenderer {
   private snake: SnakeDrawableManager | undefined;
   private items: ItemDrawableManager | undefined;
   private effects: EffectManager | undefined;
+  private hud: HudDrawableManager | undefined;
   private readonly events = new RenderEventBuffer({ maxSize: 32, ttlTicks: 240 });
   private readonly frameMetrics = new FrameMetrics(120);
   private previousFrame: RenderFrame | undefined;
   private currentFrame: RenderFrame | undefined;
+  private currentHudSnapshot: HudSnapshot | undefined;
+  private hudLayout: HudLayout | undefined;
+  private hudLayoutKey = '';
   private elapsedSinceFrameMs = 0;
   private width = 0;
   private height = 0;
@@ -191,6 +272,7 @@ export class SnakeRenderer {
     let snake: SnakeDrawableManager | undefined;
     let items: ItemDrawableManager | undefined;
     let effects: EffectManager | undefined;
+    let hud: HudDrawableManager | undefined;
 
     try {
       const hostOptions: RendererHostInit = {
@@ -207,6 +289,7 @@ export class SnakeRenderer {
       snake = new SnakeDrawableManager(scene.layers.snake, scene.layers.trail);
       items = new ItemDrawableManager(scene.layers.items, 16);
       effects = new EffectManager(scene.layers.effects, 512);
+      hud = createHudDrawableManager(scene.layers.hud);
       host.ticker.add(this.onTick);
       if (this.destroyed) throw new Error('renderer was destroyed during initialization');
 
@@ -215,11 +298,12 @@ export class SnakeRenderer {
       this.snake = snake;
       this.items = items;
       this.effects = effects;
+      this.hud = hud;
       this.width = options.width;
       this.height = options.height;
       this.initialized = true;
     } catch (error) {
-      this.rollbackInitialization(host, scene, snake, items, effects);
+      this.rollbackInitialization(host, scene, snake, items, effects, hud);
       throw error;
     } finally {
       this.initializing = false;
@@ -231,14 +315,17 @@ export class SnakeRenderer {
     this.assertDimensions(width, height);
     this.width = width;
     this.height = height;
+    this.hudLayout = undefined;
+    this.hudLayoutKey = '';
     this.host!.resize(width, height);
     if (this.currentFrame) this.draw(this.currentFrame);
   }
 
-  renderFrame(frame: RenderFrame): void {
+  renderFrame(frame: RenderFrame, hudSnapshot?: HudSnapshot): void {
     this.ensureInitialized();
     this.previousFrame = this.currentFrame;
     this.currentFrame = frame;
+    this.currentHudSnapshot = hudSnapshot ?? legacyHudSnapshotFor(frame);
     this.elapsedSinceFrameMs = 0;
     this.events.prune(frame.tick);
     this.effects!.advance(frame.tick);
@@ -291,6 +378,7 @@ export class SnakeRenderer {
 
   getMetrics(): SnakeRendererMetrics {
     const frame = this.frameMetrics.snapshot();
+    const hudCounts = this.hud?.getResourceCounts();
     return {
       ...frame,
       snakeDrawableCount: this.snake?.drawableCount ?? 0,
@@ -298,6 +386,7 @@ export class SnakeRenderer {
       itemDrawableCount: this.items?.createdCount ?? 0,
       effectActiveCount: this.effects?.activeCount ?? 0,
       eventCount: this.events.size,
+      hudDisplayObjectCount: hudCounts ? hudCounts.containers + hudCounts.graphics + hudCounts.texts : 0,
       displayObjectCount: this.countDisplayObjects(),
     };
   }
@@ -309,27 +398,35 @@ export class SnakeRenderer {
     this.snake?.destroy();
     this.items?.destroy();
     this.effects?.destroy();
+    this.hud?.destroy();
     this.events.destroy();
     if (this.scene) destroySceneGraph(this.scene);
     this.host?.destroy();
     this.previousFrame = undefined;
     this.currentFrame = undefined;
+    this.currentHudSnapshot = undefined;
+    this.hudLayout = undefined;
+    this.hudLayoutKey = '';
     this.scene = undefined;
     this.snake = undefined;
     this.items = undefined;
     this.effects = undefined;
+    this.hud = undefined;
     this.host = undefined;
     this.initialized = false;
   }
 
   private draw(frame: RenderFrame): void {
-    if (!this.scene || !this.snake || !this.items || !this.effects) return;
+    if (!this.scene || !this.snake || !this.items || !this.effects || !this.hud) return;
     const viewport = this.viewportFor(frame);
     drawBoard(this.scene, viewport, this.theme, frame.environment.activeBounds);
     drawEnvironment(this.scene, viewport, this.theme, frame.environment);
     this.effects.setViewport(viewport);
     this.snake.update(frame.snake.body, frame.snake.direction, viewport, this.skin, this.quality);
     this.items.update(frame.items, viewport);
+    if (this.currentHudSnapshot) {
+      this.hud.update(this.currentHudSnapshot, this.layoutFor(viewport), this.theme, this.quality);
+    }
   }
 
   private viewportFor(frame: RenderFrame): ViewportTransform {
@@ -340,6 +437,15 @@ export class SnakeRenderer {
       boardHeight: frame.level.height,
       safeInset: this.safeInset,
     });
+  }
+
+  private layoutFor(viewport: ViewportTransform): HudLayout {
+    const key = `${this.width}x${this.height}:${viewport.offsetX.toFixed(3)}:${viewport.offsetY.toFixed(3)}:${viewport.boardPixelWidth.toFixed(3)}:${viewport.boardPixelHeight.toFixed(3)}`;
+    if (!this.hudLayout || this.hudLayoutKey !== key) {
+      this.hudLayout = computeHudLayout(this.width, this.height, viewport);
+      this.hudLayoutKey = key;
+    }
+    return this.hudLayout;
   }
 
   private assertDimensions(width: number, height: number): void {
@@ -362,10 +468,12 @@ export class SnakeRenderer {
     snake: SnakeDrawableManager | undefined,
     items: ItemDrawableManager | undefined,
     effects: EffectManager | undefined,
+    hud: HudDrawableManager | undefined,
   ): void {
     if (host) {
       try { host.ticker.remove(this.onTick); } catch { /* best-effort rollback */ }
     }
+    try { hud?.destroy(); } catch { /* best-effort rollback */ }
     try { snake?.destroy(); } catch { /* best-effort rollback */ }
     try { items?.destroy(); } catch { /* best-effort rollback */ }
     try { effects?.destroy(); } catch { /* best-effort rollback */ }
