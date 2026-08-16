@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [phase-01-core-engine]
+    branches: [main, phase-01-core-engine]
 
 permissions:
   contents: read
