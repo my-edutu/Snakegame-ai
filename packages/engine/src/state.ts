@@ -42,7 +42,8 @@ export interface LevelRuntimeState {
   readonly name: string;
   readonly width: number;
   readonly height: number;
-  readonly growthPerFood: number;
+  /** Optional for schema-v1 snapshots created before Phase 3; legacy default is 1. */
+  readonly growthPerFood?: number;
 }
 
 export interface GameState {
