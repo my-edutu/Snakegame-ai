@@ -12,7 +12,7 @@ describe('Pixi scene graph', () => {
   it('creates a stable exact z-order with one persistent container per layer', () => {
     const scene = createSceneGraph();
     expect(SCENE_LAYER_ORDER).toEqual([
-      'background', 'grid', 'obstacles', 'hazardsPortals', 'items', 'trail', 'snake', 'effects', 'localEvents', 'debug',
+      'background', 'grid', 'obstacles', 'hazardsPortals', 'items', 'trail', 'snake', 'effects', 'localEvents', 'hud', 'debug',
     ]);
     expect(scene.root.children).toHaveLength(SCENE_LAYER_ORDER.length);
     expect(scene.root.children.map((child) => child.label)).toEqual(SCENE_LAYER_ORDER);
