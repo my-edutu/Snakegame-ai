@@ -29,7 +29,11 @@ const riskCopy = document.querySelector<HTMLElement>('#risk-copy');
 const strategyCopy = document.querySelector<HTMLElement>('#strategy-copy');
 if (!skinSelect || !themeSelect || !qualitySelect || !viewportSelect) throw new Error('preview controls are missing');
 
-const populate = <T extends string>(select: HTMLSelectElement, values: readonly { id: T; name: string }[], selected: T): void => {
+const populate = <T extends string>(
+  select: HTMLSelectElement,
+  values: readonly { id: T; name: string }[],
+  selected: T,
+): void => {
   select.replaceChildren(...values.map(({ id, name }) => {
     const option = document.createElement('option');
     option.value = id;
@@ -42,23 +46,22 @@ const populate = <T extends string>(select: HTMLSelectElement, values: readonly 
 populate(skinSelect, listSnakeSkins(), 'galaxy');
 populate(themeSelect, listThemes(), 'neon-grid');
 populate(qualitySelect, listQualityPresets(), 'balanced');
-populate(viewportSelect, Object.entries(PREVIEW_VIEWPORTS).map(([id, size]) => ({ id: id as PreviewViewportId, name: `${id.toUpperCase()} · ${size.width}×${size.height}` })), '1080p');
+populate(
+  viewportSelect,
+  Object.entries(PREVIEW_VIEWPORTS).map(([id, size]) => ({
+    id: id as PreviewViewportId,
+    name: `${id.toUpperCase()} · ${size.width}×${size.height}`,
+  })),
+  '1080p',
+);
 
-const selectedViewport = (): { width: number; height: number } => PREVIEW_VIEWPORTS[viewportSelect.value as PreviewViewportId] ?? PREVIEW_VIEWPORTS['1080p'];
+const selectedViewport = (): { width: number; height: number } =>
+  PREVIEW_VIEWPORTS[viewportSelect.value as PreviewViewportId] ?? PREVIEW_VIEWPORTS['1080p'];
 
-const renderer = new SnakeRenderer({ skin: 'galaxy', theme: 'neon-grid', quality: 'balanced', safeInset: 46 });
-const initial = selectedViewport();
-await renderer.init({ width: initial.width, height: initial.height, mount: stage, resolution: 1 });
-
-skinSelect.addEventListener('change', () => renderer.setSkin(skinSelect.value));
-themeSelect.addEventListener('change', () => renderer.setTheme(themeSelect.value));
-qualitySelect.addEventListener('change', () => renderer.setQuality(qualitySelect.value));
-viewportSelect.addEventListener('change', () => {
-  const next = selectedViewport();
-  renderer.resize(next.width, next.height);
-});
-
-const directionBetween = (a: { x: number; y: number }, b: { x: number; y: number }): RenderDirection => {
+const directionBetween = (
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+): RenderDirection => {
   if (b.x > a.x) return 'right';
   if (b.x < a.x) return 'left';
   if (b.y > a.y) return 'down';
@@ -68,7 +71,10 @@ const directionBetween = (a: { x: number; y: number }, b: { x: number; y: number
 const createDemoFrame = (tick: number): RenderFrame => {
   const headIndex = (86 + tick) % path.length;
   const snakeLength = 42 + Math.floor((tick % 420) / 28);
-  const body = Array.from({ length: snakeLength }, (_, offset) => path[(headIndex - offset + path.length) % path.length]!);
+  const body = Array.from(
+    { length: snakeLength },
+    (_, offset) => path[(headIndex - offset + path.length) % path.length]!,
+  );
   const previousHead = path[(headIndex - 1 + path.length) % path.length]!;
   const head = path[headIndex]!;
   const risk = Math.round(26 + 62 * (0.5 + 0.5 * Math.sin(tick / 27)));
@@ -77,27 +83,46 @@ const createDemoFrame = (tick: number): RenderFrame => {
   if (strategyCopy) strategyCopy.textContent = strategy;
 
   const event = tick > 0 && tick % 120 === 0
-    ? [{ id: tick, kind: risk > 70 ? 'near-death' as const : 'milestone' as const, label: risk > 70 ? 'CLOSE CALL' : '25% BOARD FILLED', tick }]
+    ? [{
+        id: tick,
+        kind: risk > 70 ? 'near-death' as const : 'milestone' as const,
+        label: risk > 70 ? 'CLOSE CALL' : '25% BOARD FILLED',
+        tick,
+      }]
     : [];
 
   return createRenderFrame({
     tick,
     tickDurationMs: TICK_MS,
-    level: { id: 'level-08', name: 'The Maze', width: BOARD_WIDTH, height: BOARD_HEIGHT, themeKey: themeSelect.value },
+    level: {
+      id: 'level-08',
+      name: 'The Maze',
+      width: BOARD_WIDTH,
+      height: BOARD_HEIGHT,
+      themeKey: themeSelect.value,
+    },
     lifecycle: 'playing',
     snake: { direction: directionBetween(previousHead, head), body },
     items: [
       { id: 'food-normal', type: 'normal', position: path[(headIndex + 67) % path.length]!, value: 1 },
-      ...(tick % 150 < 70 ? [{ id: 'food-rare', type: 'rare', position: path[(headIndex + 171) % path.length]!, value: 3 }] : []),
+      ...(tick % 150 < 70
+        ? [{ id: 'food-rare', type: 'rare', position: path[(headIndex + 171) % path.length]!, value: 3 }]
+        : []),
     ],
     environment: {
       activeBounds: { minX: 1, minY: 1, maxX: 38, maxY: 28 },
       obstacles: [
-        { id: 'w1', position: { x: 11, y: 7 } }, { id: 'w2', position: { x: 11, y: 8 } },
-        { id: 'w3', position: { x: 11, y: 9 } }, { id: 'w4', position: { x: 27, y: 19 } },
-        { id: 'w5', position: { x: 28, y: 19 } }, { id: 'w6', position: { x: 29, y: 19 } },
+        { id: 'w1', position: { x: 11, y: 7 } },
+        { id: 'w2', position: { x: 11, y: 8 } },
+        { id: 'w3', position: { x: 11, y: 9 } },
+        { id: 'w4', position: { x: 27, y: 19 } },
+        { id: 'w5', position: { x: 28, y: 19 } },
+        { id: 'w6', position: { x: 29, y: 19 } },
       ],
-      hazards: [{ id: 'h1', position: { x: 20, y: 15 } }, { id: 'h2', position: { x: 32, y: 5 } }],
+      hazards: [
+        { id: 'h1', position: { x: 20, y: 15 } },
+        { id: 'h2', position: { x: 32, y: 5 } },
+      ],
       portals: [{ id: 'portal-pair', a: { x: 4, y: 24 }, b: { x: 35, y: 4 } }],
     },
     hud: {
@@ -111,14 +136,51 @@ const createDemoFrame = (tick: number): RenderFrame => {
   });
 };
 
-let tick = 1;
-renderer.renderFrame(createDemoFrame(tick));
-const timer = window.setInterval(() => {
-  tick += 1;
-  renderer.renderFrame(createDemoFrame(tick));
-}, TICK_MS);
+const bootPreview = async (): Promise<void> => {
+  stage.dataset.rendererState = 'initializing';
+  const renderer = new SnakeRenderer({
+    skin: 'galaxy',
+    theme: 'neon-grid',
+    quality: 'balanced',
+    safeInset: 46,
+  });
 
-window.addEventListener('pagehide', () => {
-  window.clearInterval(timer);
-  renderer.destroy();
-}, { once: true });
+  try {
+    const initial = selectedViewport();
+    await renderer.init({
+      width: initial.width,
+      height: initial.height,
+      mount: stage,
+      resolution: 1,
+    });
+
+    skinSelect.addEventListener('change', () => renderer.setSkin(skinSelect.value));
+    themeSelect.addEventListener('change', () => renderer.setTheme(themeSelect.value));
+    qualitySelect.addEventListener('change', () => renderer.setQuality(qualitySelect.value));
+    viewportSelect.addEventListener('change', () => {
+      const next = selectedViewport();
+      renderer.resize(next.width, next.height);
+    });
+
+    let tick = 1;
+    renderer.renderFrame(createDemoFrame(tick));
+    const timer = window.setInterval(() => {
+      tick += 1;
+      renderer.renderFrame(createDemoFrame(tick));
+    }, TICK_MS);
+
+    stage.dataset.rendererState = 'ready';
+    window.addEventListener('pagehide', () => {
+      window.clearInterval(timer);
+      renderer.destroy();
+    }, { once: true });
+  } catch (error) {
+    renderer.destroy();
+    throw error;
+  }
+};
+
+void bootPreview().catch((error: unknown) => {
+  stage.dataset.rendererState = 'error';
+  console.error('AI Snake renderer preview failed to start', error);
+});
