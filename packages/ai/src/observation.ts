@@ -18,6 +18,7 @@ export interface AiObservation {
   readonly body: readonly Vec2[];
   readonly direction: Direction;
   readonly pendingGrowth: number;
+  readonly growthPerFood: number;
   readonly food: readonly AiFood[];
   readonly obstacles: readonly AiObstacle[];
   readonly hazards: readonly AiHazard[];
@@ -40,6 +41,7 @@ export function createObservation(state: GameState): AiObservation {
     body,
     direction: state.snake.direction,
     pendingGrowth: state.snake.pendingGrowth,
+    growthPerFood: state.level.growthPerFood,
     food: state.food.map((item) => ({
       id: item.id,
       type: item.type,
