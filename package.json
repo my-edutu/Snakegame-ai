@@ -11,8 +11,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "headless": "pnpm --filter @snake/engine headless",
+    "headless:ai": "pnpm --filter @snake/ai headless",
     "check:forbidden": "node scripts/check-forbidden-apis.mjs",
-    "check": "pnpm typecheck && pnpm test && pnpm build && pnpm check:forbidden && pnpm headless"
+    "check": "pnpm typecheck && pnpm test && pnpm build && pnpm check:forbidden && pnpm headless && pnpm headless:ai"
   },
   "devDependencies": {
     "typescript": "5.8.3",
