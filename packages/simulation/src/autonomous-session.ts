@@ -3,8 +3,119 @@ import { buildRunSummary, type RunSummary } from './run-summary.js';
 import { completeLevel, createLifecycleState, endRun, reduceLifecycle, type CompletionPolicy, type LifecycleCommand, type LifecycleConfig, type LifecycleState } from './lifecycle.js';
 import { createEmptyRecords, updateRecords, type AllTimeRecords } from './records.js';
 import { createMilestoneState, evaluateMilestones, type MilestoneEvent, type MilestoneState } from './milestones.js';
-export interface AutonomousSessionConfig extends LifecycleConfig { readonly completionPolicy: CompletionPolicy }
-export interface AutonomousSessionState { readonly lifecycle: LifecycleState; readonly records: AllTimeRecords; readonly milestoneState: MilestoneState; readonly milestoneEvents: readonly MilestoneEvent[]; readonly lastSummary: RunSummary | null }
-export function createAutonomousSession(config: AutonomousSessionConfig): AutonomousSessionState { return { lifecycle:createLifecycleState(config), records:createEmptyRecords(), milestoneState:createMilestoneState(), milestoneEvents:[], lastSummary:null }; }
-export function applyLevelResultToSession(state: AutonomousSessionState, result: LevelSimulationResult, config: AutonomousSessionConfig): AutonomousSessionState { const finalLevel=result.levelCompleted && state.lifecycle.currentLevel>=state.lifecycle.levelCount; const died=result.run.terminalReason==='death'; const runEnded=died||finalLevel; const nextStreak=result.levelCompleted ? state.lifecycle.levelStreak+1 : 0; const update=updateRecords(state.records,{ levelNumber:result.levelNumber, levelCompleted:result.levelCompleted, runEnded, died, ticksSurvived:result.run.ticksSurvived, maxLength:result.run.maxLength, maxOccupancyPercent:result.run.maxOccupancyPercent, score:result.run.score, foodConsumed:result.run.foodConsumed, levelStreak:nextStreak, completionTicks:result.levelCompleted?result.run.ticksSurvived:null }); const milestone=evaluateMilestones(state.milestoneState,{ tick:update.records.totalPlayTicks, length:result.run.maxLength, occupancyPercent:result.run.maxOccupancyPercent, foodConsumed:update.records.totalFood, score:result.run.score, level:result.levelNumber, levelStreak:nextStreak, ticksSurvived:result.run.ticksSurvived },{minimumGapTicks:0}); if (result.levelCompleted && !finalLevel) return { lifecycle:completeLevel(state.lifecycle,config.completionPolicy,config), records:update.records, milestoneState:milestone.state, milestoneEvents:[...state.milestoneEvents,...milestone.events], lastSummary:state.lastSummary }; const summary=buildRunSummary({ runNumber:state.lifecycle.runNumber, levelNumber:result.levelNumber, terminalReason:result.run.terminalReason, deathCause:result.run.deathCause, ticksSurvived:result.run.ticksSurvived, maxLength:result.run.maxLength, maxOccupancyPercent:result.run.maxOccupancyPercent, score:result.run.score, foodConsumed:result.run.foodConsumed, levelCompleted:result.levelCompleted, newRecords:update.newRecords, milestones:milestone.events, nearDeaths:[] }); return { lifecycle:endRun(state.lifecycle,config), records:update.records, milestoneState:milestone.state, milestoneEvents:[...state.milestoneEvents,...milestone.events], lastSummary:summary }; }
-export function advanceAutonomousSession(state: AutonomousSessionState, command: LifecycleCommand, config: AutonomousSessionConfig): AutonomousSessionState { return { ...state, lifecycle:reduceLifecycle(state.lifecycle,command,config) }; }
+import { createNearDeathState, detectNearDeathEvent, type NearDeathEvidence, type NearDeathEvent, type NearDeathState } from './near-death.js';
+
+export interface AutonomousSessionConfig extends LifecycleConfig {
+  readonly completionPolicy: CompletionPolicy;
+  readonly nearDeathMinimumGapTicks?: number;
+}
+
+export interface AutonomousSessionState {
+  readonly lifecycle: LifecycleState;
+  readonly records: AllTimeRecords;
+  readonly milestoneState: MilestoneState;
+  readonly milestoneEvents: readonly MilestoneEvent[];
+  readonly nearDeathState: NearDeathState;
+  readonly nearDeaths: readonly NearDeathEvent[];
+  readonly lastSummary: RunSummary | null;
+}
+
+export function createAutonomousSession(config: AutonomousSessionConfig): AutonomousSessionState {
+  return {
+    lifecycle: createLifecycleState(config),
+    records: createEmptyRecords(),
+    milestoneState: createMilestoneState(),
+    milestoneEvents: [],
+    nearDeathState: createNearDeathState(),
+    nearDeaths: [],
+    lastSummary: null,
+  };
+}
+
+export function observeSessionDecision(state: AutonomousSessionState, evidence: NearDeathEvidence, config: AutonomousSessionConfig): AutonomousSessionState {
+  const detected = detectNearDeathEvent(state.nearDeathState, evidence, { minimumGapTicks: config.nearDeathMinimumGapTicks ?? 30 });
+  return {
+    ...state,
+    nearDeathState: detected.state,
+    nearDeaths: detected.event ? [...state.nearDeaths, detected.event] : state.nearDeaths,
+  };
+}
+
+export function applyLevelResultToSession(state: AutonomousSessionState, result: LevelSimulationResult, config: AutonomousSessionConfig): AutonomousSessionState {
+  const finalLevel = result.levelCompleted && state.lifecycle.currentLevel >= state.lifecycle.levelCount;
+  const died = result.run.terminalReason === 'death';
+  const runEnded = died || finalLevel;
+  const nextStreak = result.levelCompleted ? state.lifecycle.levelStreak + 1 : 0;
+  const update = updateRecords(state.records, {
+    levelNumber: result.levelNumber,
+    levelCompleted: result.levelCompleted,
+    runEnded,
+    died,
+    ticksSurvived: result.run.ticksSurvived,
+    maxLength: result.run.maxLength,
+    maxOccupancyPercent: result.run.maxOccupancyPercent,
+    score: result.run.score,
+    foodConsumed: result.run.foodConsumed,
+    levelStreak: nextStreak,
+    completionTicks: result.levelCompleted ? result.run.ticksSurvived : null,
+  });
+  const milestone = evaluateMilestones(state.milestoneState, {
+    tick: update.records.totalPlayTicks,
+    length: result.run.maxLength,
+    occupancyPercent: result.run.maxOccupancyPercent,
+    foodConsumed: update.records.totalFood,
+    score: result.run.score,
+    level: result.levelNumber,
+    levelStreak: nextStreak,
+    ticksSurvived: result.run.ticksSurvived,
+  }, { minimumGapTicks: 0 });
+
+  if (result.levelCompleted && !finalLevel) {
+    return {
+      ...state,
+      lifecycle: completeLevel(state.lifecycle, config.completionPolicy, config),
+      records: update.records,
+      milestoneState: milestone.state,
+      milestoneEvents: [...state.milestoneEvents, ...milestone.events],
+    };
+  }
+
+  const summary = buildRunSummary({
+    runNumber: state.lifecycle.runNumber,
+    levelNumber: result.levelNumber,
+    terminalReason: result.run.terminalReason,
+    deathCause: result.run.deathCause,
+    ticksSurvived: result.run.ticksSurvived,
+    maxLength: result.run.maxLength,
+    maxOccupancyPercent: result.run.maxOccupancyPercent,
+    score: result.run.score,
+    foodConsumed: result.run.foodConsumed,
+    levelCompleted: result.levelCompleted,
+    newRecords: update.newRecords,
+    milestones: milestone.events,
+    nearDeaths: state.nearDeaths,
+  });
+  return {
+    ...state,
+    lifecycle: endRun(state.lifecycle, config),
+    records: update.records,
+    milestoneState: milestone.state,
+    milestoneEvents: [...state.milestoneEvents, ...milestone.events],
+    lastSummary: summary,
+  };
+}
+
+export function advanceAutonomousSession(state: AutonomousSessionState, command: LifecycleCommand, config: AutonomousSessionConfig): AutonomousSessionState {
+  const lifecycle = reduceLifecycle(state.lifecycle, command, config);
+  const freshRunStarted = lifecycle.runNumber !== state.lifecycle.runNumber && lifecycle.phase === 'playing';
+  if (!freshRunStarted) return { ...state, lifecycle };
+  return {
+    ...state,
+    lifecycle,
+    milestoneState: createMilestoneState(),
+    milestoneEvents: [],
+    nearDeathState: createNearDeathState(),
+    nearDeaths: [],
+    lastSummary: null,
+  };
+}
