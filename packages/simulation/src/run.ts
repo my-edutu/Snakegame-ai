@@ -1,8 +1,9 @@
 import { createObservation, decideSurvivalMove, type StrategyState } from '@snake/ai';
 import { createEngine, type EngineConfig } from '@snake/engine';
-import type { SimulationExecutionConfig, SimulationRunResult, SimulationTerminalReason, StrategyTransition } from './types.js';
+import type { SimulationExecutionConfig, SimulationRunResult, SimulationTerminalReason, StrategyTransition, TerminalDecisionContext } from './types.js';
 
 const initialStrategy = (): StrategyState => ({ mode: 'explore', ticksInMode: 10_000 });
+const emptyTerminalContext = (): TerminalDecisionContext => ({ strategy: null, riskLevel: null, riskScore: 0, safeMoves: 0, summary: null });
 
 function validateHarness(maxTicks: number): void {
   if (!Number.isInteger(maxTicks) || maxTicks < 1 || maxTicks > 10_000_000) {
@@ -31,6 +32,7 @@ export function runSimulation(seed: number, execution: SimulationExecutionConfig
   let hamiltonianEntries = 0;
   let hamiltonianTicks = 0;
   let terminalReason: SimulationTerminalReason = 'simulation-cap';
+  let terminalContext = emptyTerminalContext();
 
   for (let index = 0; index < execution.harness.maxTicks; index += 1) {
     const before = engine.getState();
@@ -38,6 +40,13 @@ export function runSimulation(seed: number, execution: SimulationExecutionConfig
     if (before.progression.boardFilled) { terminalReason = 'board-filled'; break; }
 
     const decision = decideSurvivalMove(createObservation(before), strategy, execution.ai ?? {});
+    terminalContext = {
+      strategy: decision.strategy.mode,
+      riskLevel: decision.risk.level,
+      riskScore: decision.risk.score,
+      safeMoves: decision.risk.contributors.safeMoves,
+      summary: decision.summary,
+    };
     decisionCount += 1;
     riskSum += decision.risk.score;
     peakRisk = Math.max(peakRisk, decision.risk.score);
@@ -81,6 +90,7 @@ export function runSimulation(seed: number, execution: SimulationExecutionConfig
     nearDeathCount,
     hamiltonianEntries,
     hamiltonianTicks,
+    terminalContext,
     levelReached: 1,
     levelCompleted: terminalReason === 'board-filled',
   };
