@@ -41,7 +41,7 @@ export function createObservation(state: GameState): AiObservation {
     body,
     direction: state.snake.direction,
     pendingGrowth: state.snake.pendingGrowth,
-    growthPerFood: state.level.growthPerFood,
+    growthPerFood: state.level.growthPerFood ?? 1,
     food: state.food.map((item) => ({
       id: item.id,
       type: item.type,
