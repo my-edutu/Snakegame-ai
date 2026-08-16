@@ -21,6 +21,28 @@ describe('survival simulation', () => {
     expect(simulateMove(createSimulatedState({ ...obs, pendingGrowth: 1 }), 'up').legal).toBe(false);
   });
 
+  it('matches configurable engine growth queues after food consumption', () => {
+    const state = createSimulatedState(makeObservation({
+      head: { x: 2, y: 2 }, tail: { x: 1, y: 2 }, body: [{ x: 2, y: 2 }, { x: 1, y: 2 }], direction: 'right',
+      growthPerFood: 3,
+      food: [{ id: 'f', type: 'normal', value: 1, position: { x: 3, y: 2 } }],
+    }));
+    const eaten = simulateMove(state, 'right');
+    expect(eaten.legal).toBe(true);
+    expect(eaten.state?.body).toHaveLength(3);
+    expect(eaten.state?.pendingGrowth).toBe(2);
+    expect(eaten.state?.growthPerFood).toBe(3);
+  });
+
+  it('matches engine collision semantics when zero-growth food occupies the vacating tail', () => {
+    const state = createSimulatedState(makeObservation({
+      head: { x: 2, y: 2 }, tail: { x: 2, y: 1 }, body: [{ x: 2, y: 2 }, { x: 2, y: 1 }], direction: 'right',
+      growthPerFood: 0,
+      food: [{ id: 'f', type: 'normal', value: 1, position: { x: 2, y: 1 } }],
+    }));
+    expect(simulateMove(state, 'up').legal).toBe(false);
+  });
+
   it('deeply owns successor data', () => {
     const obs = makeObservation({ food: [{ id: 'f', type: 'normal', value: 1, position: { x: 3, y: 2 } }] });
     const state = createSimulatedState(obs);
