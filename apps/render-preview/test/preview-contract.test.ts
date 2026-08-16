@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { PREVIEW_VIEWPORTS, isPresentationOnlySetting } from '../src/config.js';
 
 const entrySource = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8');
+const styleSource = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
 const entryAst = ts.createSourceFile('main.ts', entrySource, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
 
 const hasTopLevelAwait = entryAst.statements.some((statement) =>
@@ -29,5 +30,13 @@ describe('render preview host contract', () => {
     expect(entrySource).toContain('void bootPreview().catch');
     expect(entrySource).toContain("stage.dataset['rendererState'] = 'ready'");
     expect(entrySource).toContain("stage.dataset['rendererState'] = 'error'");
+  });
+
+  it('scales the exact-resolution canvas completely inside the visible preview stage', () => {
+    expect(styleSource).toMatch(/\.stage\s*\{[^}]*place-items:\s*center;/s);
+    expect(styleSource).toMatch(/\.stage canvas\s*\{[^}]*max-width:\s*100%;/s);
+    expect(styleSource).toMatch(/\.stage canvas\s*\{[^}]*max-height:\s*100%;/s);
+    expect(styleSource).toMatch(/\.stage canvas\s*\{[^}]*width:\s*auto\s*!important;/s);
+    expect(styleSource).toMatch(/\.stage canvas\s*\{[^}]*height:\s*auto\s*!important;/s);
   });
 });
