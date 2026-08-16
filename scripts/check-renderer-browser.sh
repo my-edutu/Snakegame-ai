@@ -13,7 +13,7 @@ SCREENSHOT="${EVIDENCE_DIR}/preview-1080p.png"
 rm -rf "${EVIDENCE_DIR}"
 mkdir -p "${EVIDENCE_DIR}"
 
-pnpm --filter @snake/render-preview preview -- --host "${HOST}" --port "${PORT}" --strictPort >"${SERVER_LOG}" 2>&1 &
+pnpm --filter @snake/render-preview preview --host "${HOST}" --port "${PORT}" --strictPort >"${SERVER_LOG}" 2>&1 &
 SERVER_PID=$!
 cleanup() {
   kill "${SERVER_PID}" 2>/dev/null || true
