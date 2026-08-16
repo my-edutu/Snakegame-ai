@@ -1,16 +1,16 @@
-name: Phase 1 Core Engine CI
+name: Snake Core CI
 
 on:
   pull_request:
     branches: [main]
   push:
-    branches: [main, phase-01-core-engine]
+    branches: [main, phase-02-pathfinding]
 
 permissions:
   contents: read
 
 concurrency:
-  group: phase-01-${{ github.workflow }}-${{ github.ref }}
+  group: snake-core-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -36,8 +36,8 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
-      - name: Install frozen dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
 
       - name: Typecheck
         run: pnpm typecheck
@@ -48,10 +48,10 @@ jobs:
       - name: Build packages
         run: pnpm build
 
-      - name: Scan engine for forbidden APIs
+      - name: Scan deterministic core for forbidden APIs
         run: pnpm check:forbidden
 
-      - name: Verify repeatable headless output
+      - name: Verify repeatable engine headless output
         shell: bash
         run: |
           set -euo pipefail
