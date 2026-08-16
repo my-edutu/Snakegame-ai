@@ -155,7 +155,8 @@ export function decideSurvivalMove(observation: AiObservation, previousStrategy:
 
   const legal = evaluations.filter((e) => e.legal);
   const viable = legal.filter((e) => !e.hardRejected);
-  const pool = viable.length ? viable : legal;
+  const hamiltonianForward = highOccupancy && hamiltonianBodyOrdered ? viable.find((e) => e.hamiltonianPenalty === 0) : undefined;
+  const pool = hamiltonianForward ? [hamiltonianForward] : viable.length ? viable : legal;
   const best = [...pool].sort((a, b) => b.totalScore - a.totalScore || CANONICAL_DIRECTIONS.indexOf(a.direction) - CANONICAL_DIRECTIONS.indexOf(b.direction))[0];
   const safeMoves = viable.length;
   const bestArea = best?.reachableAreaRatio ?? 0;
