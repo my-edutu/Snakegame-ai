@@ -9,7 +9,11 @@ const config = (overrides: Partial<EngineConfig> & Record<string, unknown> = {})
 
 describe('Phase 5 generic environment mechanics', () => {
   it('wraps at the board edge when wrap is enabled', () => {
-    const engine = createEngine(config({ board: { width: 4, height: 3 }, wrap: true }));
+    const engine = createEngine(config({
+      board: { width: 4, height: 3 },
+      initialSnake: { body: [{ x: 0, y: 1 }, { x: 1, y: 1 }], direction: 'left' },
+      wrap: true,
+    }));
     engine.step('left');
     expect(engine.getState().snake.body[0]).toEqual({ x: 3, y: 1 });
   });
