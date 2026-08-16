@@ -7,9 +7,10 @@ export interface AiFood {
   readonly position: Vec2;
   readonly value: number;
 }
-
 export interface AiObstacle { readonly id: string; readonly position: Vec2 }
 export interface AiHazard { readonly id: string; readonly position: Vec2 }
+export interface AiPortal { readonly id: string; readonly a: Vec2; readonly b: Vec2 }
+export interface AiActiveBounds { readonly minX: number; readonly minY: number; readonly maxX: number; readonly maxY: number }
 
 export interface AiObservation {
   readonly board: Readonly<{ width: number; height: number }>;
@@ -22,6 +23,9 @@ export interface AiObservation {
   readonly food: readonly AiFood[];
   readonly obstacles: readonly AiObstacle[];
   readonly hazards: readonly AiHazard[];
+  readonly portals?: readonly AiPortal[];
+  readonly wrap?: boolean;
+  readonly activeBounds?: AiActiveBounds;
   readonly tick: number;
   readonly runId: string;
 }
@@ -36,21 +40,14 @@ export function createObservation(state: GameState): AiObservation {
 
   return {
     board: { width: state.level.width, height: state.level.height },
-    head: cloneVec(head),
-    tail: cloneVec(tail),
-    body,
-    direction: state.snake.direction,
-    pendingGrowth: state.snake.pendingGrowth,
-    growthPerFood: state.level.growthPerFood ?? 1,
-    food: state.food.map((item) => ({
-      id: item.id,
-      type: item.type,
-      position: cloneVec(item.position),
-      value: item.value,
-    })),
+    head: cloneVec(head), tail: cloneVec(tail), body, direction: state.snake.direction,
+    pendingGrowth: state.snake.pendingGrowth, growthPerFood: state.level.growthPerFood ?? 1,
+    food: state.food.map((item) => ({ id: item.id, type: item.type, position: cloneVec(item.position), value: item.value })),
     obstacles: state.obstacles.map((item) => ({ id: item.id, position: cloneVec(item.position) })),
     hazards: state.hazards.map((item) => ({ id: item.id, position: cloneVec(item.position) })),
-    tick: state.tick,
-    runId: state.runId,
+    portals: state.portals.map((item) => ({ id: item.id, a: cloneVec(item.a), b: cloneVec(item.b) })),
+    wrap: state.level.wrap ?? false,
+    ...(state.activeBounds === undefined ? {} : { activeBounds: { ...state.activeBounds } }),
+    tick: state.tick, runId: state.runId,
   };
 }

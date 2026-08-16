@@ -16,6 +16,8 @@ const observation: AiObservation = {
     { id: 'wall-c', position: { x: 7, y: 5 } },
   ],
   hazards: [],
+  portals: [],
+  wrap: false,
   tick: 240,
   runId: 'phase-03-smoke',
 };
